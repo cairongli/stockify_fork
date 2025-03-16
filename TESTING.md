@@ -5,35 +5,35 @@
 ### Frontend
 - **Jest + React Testing Library**
   - Industry standard for React testing
-  - Great component testing capabilities
   - Built-in coverage reporting
+  - Easy-to-read test syntax
 
 ### Backend
 - **Pytest**
-  - Powerful Python testing framework
-  - Simple syntax for writing tests
-  - Excellent plugin ecosystem
+  - Python's most popular testing framework
+  - Simple test writing
+  - Excellent coverage reporting
 
-## Test Organization
-
+## Directory Structure
 ```
 stockify/
 ├── frontend/
 │   ├── src/
-│   │   ├── __tests__/          # Frontend tests directory
-│   │   │   ├── components/     # Component tests
-│   │   │   │   ├── Navbar.test.jsx
-│   │   │   │   └── Hero.test.jsx
+│   │   ├── __tests__/          # Frontend tests
+│   │   │   └── components/     # Component tests
+│   │   └── components/         # React components
 ├── backend/
-│   ├── tests/                  # Backend tests directory
-│   │   └── test_app.py
-│   └── app.py
+│   ├── app.py                  # Flask application
+│   └── tests/                  # Backend tests
 ```
 
-## Running Tests
+## Running Tests Locally
 
-### Frontend
+### Frontend Tests
 ```bash
+# Navigate to frontend directory
+cd frontend
+
 # Run tests
 npm test
 
@@ -41,8 +41,14 @@ npm test
 npm test -- --coverage
 ```
 
-### Backend
+### Backend Tests
 ```bash
+# Navigate to backend directory
+cd backend
+
+# Activate virtual environment
+source venv/bin/activate
+
 # Run tests
 pytest -v
 
@@ -54,40 +60,48 @@ pytest --cov=. tests/
 
 ### Frontend Component Test
 ```javascript
-describe('Component', () => {
-  it('should render correctly', () => {
-    render(<Component />);
-    expect(screen.getByRole('button')).toBeInTheDocument();
+import { render, screen } from '@testing-library/react';
+import Navbar from '../components/Navbar';
+
+describe('Navbar', () => {
+  it('renders without crashing', () => {
+    render(<Navbar />);
+    // Add your assertions here
   });
 });
 ```
 
 ### Backend API Test
 ```python
-def test_endpoint(client):
+def test_hello_world(client):
     response = client.get('/')
     assert response.status_code == 200
+    assert response.json['message'] == "Hello, world!"
 ```
+
+## Continuous Integration
+
+Tests run automatically on:
+- Every push to main branch
+- Every pull request
+- Every push to test-engineering branch
+
+### GitHub Actions Workflow
+- Runs frontend and backend tests separately
+- Reports test results
+- Shows test coverage
+- Fails if tests fail
+
+## Coverage Requirements
+- Frontend: 80% minimum
+- Backend: 85% minimum
 
 ## Helpful Resources
 
 ### Frontend Testing
-- [Jest Documentation](https://jestjs.io/docs/getting-started)
+- [Jest Docs](https://jestjs.io/docs/getting-started)
 - [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
-- [Testing React Applications](https://reactjs.org/docs/testing.html)
 
 ### Backend Testing
-- [Pytest Documentation](https://docs.pytest.org/)
-- [Flask Testing](https://flask.palletsprojects.com/en/2.0.x/testing/)
-
-## Continuous Integration
-
-Our GitHub Actions pipeline automatically:
-- Runs all tests on pull requests and pushes to main
-- Reports test failures
-- Tracks code coverage
-- Ensures tests pass before merging
-
-### Coverage Requirements
-- Frontend: 80% minimum
-- Backend: 85% minimum 
+- [Pytest Docs](https://docs.pytest.org/)
+- [Flask Testing](https://flask.palletsprojects.com/en/2.0.x/testing/) 
