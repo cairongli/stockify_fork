@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom';
 
 // Mock next/router
 jest.mock('next/router', () => ({
@@ -10,9 +10,9 @@ jest.mock('next/router', () => ({
       back: jest.fn(),
       pathname: '/',
       query: {},
-    }
+    };
   },
-}))
+}));
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -23,12 +23,12 @@ jest.mock('next/navigation', () => ({
       prefetch: jest.fn(),
       back: jest.fn(),
       pathname: '/',
-    }
+    };
   },
   usePathname() {
-    return '/'
+    return '/';
   },
   useSearchParams() {
-    return new URLSearchParams()
+    return new URLSearchParams();
   },
-})) 
+}));
