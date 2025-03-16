@@ -8,7 +8,7 @@ def client():
         yield client
 
 def test_hello_world(client):
-    """Test that the root route returns Hello, world!"""
+    """Test that the root route returns working"""
     response = client.get('/')
     assert response.status_code == 200
-    assert response.json['message'] == "Hello, world!" 
+    assert response.json['message'] == "working" 
