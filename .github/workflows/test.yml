@@ -27,12 +27,6 @@ jobs:
     
     - name: Run tests and collect coverage
       run: npm test -- --coverage
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        directory: ./frontend/coverage/
-        flags: frontend
 
   backend-tests:
     runs-on: ubuntu-latest
@@ -54,11 +48,4 @@ jobs:
         pip install -r requirements.txt
     
     - name: Run tests and collect coverage
-      run: |
-        pytest --cov=app tests/ --cov-report=xml
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        directory: ./backend/
-        flags: backend 
+      run: pytest --cov=. tests/ --cov-report=term-missing 

@@ -1,18 +1,18 @@
 # Testing Guide for Stockify
 
-This document outlines the testing strategy and guidelines for the Stockify project.
+## Testing Frameworks Selected
 
-## Testing Frameworks
+### Frontend
+- **Jest + React Testing Library**
+  - Industry standard for React testing
+  - Great component testing capabilities
+  - Built-in coverage reporting
 
-### Frontend Testing (Jest + React Testing Library)
-- **Jest**: Main testing framework
-- **React Testing Library**: DOM testing utilities
-- **Coverage**: Jest built-in coverage reporting
-
-### Backend Testing (Pytest)
-- **Pytest**: Main testing framework
-- **Pytest-cov**: Coverage reporting
-- **Flask Test Client**: API testing
+### Backend
+- **Pytest**
+  - Powerful Python testing framework
+  - Simple syntax for writing tests
+  - Excellent plugin ecosystem
 
 ## Test Organization
 
@@ -20,50 +20,39 @@ This document outlines the testing strategy and guidelines for the Stockify proj
 stockify/
 ├── frontend/
 │   ├── src/
-│   │   ├── __tests__/
-│   │   │   ├── components/
+│   │   ├── __tests__/          # Frontend tests directory
+│   │   │   ├── components/     # Component tests
 │   │   │   │   ├── Navbar.test.jsx
 │   │   │   │   └── Hero.test.jsx
-│   │   └── components/
 ├── backend/
-│   ├── tests/
+│   ├── tests/                  # Backend tests directory
 │   │   └── test_app.py
 │   └── app.py
 ```
 
 ## Running Tests
 
-### Frontend Tests
+### Frontend
 ```bash
 # Run tests
 npm test
 
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage
+# Run with coverage
 npm test -- --coverage
 ```
 
-### Backend Tests
+### Backend
 ```bash
 # Run tests
-PYTHONPATH=. pytest -v
+pytest -v
 
-# Run tests with coverage
-PYTHONPATH=. pytest --cov=app tests/
+# Run with coverage
+pytest --cov=. tests/
 ```
 
-## Testing Guidelines
+## Example Tests
 
-### Frontend Testing Best Practices
-1. Test component rendering
-2. Test user interactions
-3. Test state changes
-4. Mock external dependencies
-5. Use meaningful test descriptions
-
-Example:
+### Frontend Component Test
 ```javascript
 describe('Component', () => {
   it('should render correctly', () => {
@@ -73,14 +62,7 @@ describe('Component', () => {
 });
 ```
 
-### Backend Testing Best Practices
-1. Test API endpoints
-2. Test error handling
-3. Test edge cases
-4. Use fixtures for test data
-5. Mock external services
-
-Example:
+### Backend API Test
 ```python
 def test_endpoint(client):
     response = client.get('/')
@@ -97,16 +79,15 @@ def test_endpoint(client):
 ### Backend Testing
 - [Pytest Documentation](https://docs.pytest.org/)
 - [Flask Testing](https://flask.palletsprojects.com/en/2.0.x/testing/)
-- [Python Testing Best Practices](https://docs.python-guide.org/writing/tests/)
 
 ## Continuous Integration
 
-Our CI pipeline runs on every pull request and push to main branch:
-- Runs all tests
-- Generates coverage reports
-- Fails if coverage drops below threshold
-- Sends notifications on failure
+Our GitHub Actions pipeline automatically:
+- Runs all tests on pull requests and pushes to main
+- Reports test failures
+- Tracks code coverage
+- Ensures tests pass before merging
 
 ### Coverage Requirements
-- Frontend: Minimum 80% coverage
-- Backend: Minimum 85% coverage 
+- Frontend: 80% minimum
+- Backend: 85% minimum 

@@ -37,4 +37,11 @@ htmlcov/
 
 # Environment variables
 .env
+.env.local
+
+# Keep .flaskenv for development settings
+!.flaskenv
+
+# Keep .env for environment variables
+.env
 .env.local 
