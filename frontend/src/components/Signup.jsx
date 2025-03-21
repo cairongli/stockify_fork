@@ -6,7 +6,7 @@ const Signup = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const handleSubmit = async (e) => {
+  /*const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setMessage('');
@@ -29,7 +29,7 @@ const Signup = () => {
     } catch (err) {
       setError(err.message);
     }
-  };
+  };*/
 
   return (
     <div className="flex justify-center items-center h-screen bg-gray-100">
@@ -43,7 +43,6 @@ const Signup = () => {
           type="text"
           placeholder="Username"
           value={username}
-          onChange={(e) => setUsername(e.target.value)}
           className="w-full p-2 border rounded mb-4"
           required
         />
@@ -51,7 +50,6 @@ const Signup = () => {
           type="password"
           placeholder="Password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
           className="w-full p-2 border rounded mb-4"
           required
         />
