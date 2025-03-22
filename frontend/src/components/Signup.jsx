@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import supabase from '@/config/supabaseClient';
 
 const Signup = () => {
   const [username, setUsername] = useState('');
@@ -6,34 +7,9 @@ const Signup = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  /*const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setMessage('');
-
-    try {
-      const response = await fetch('http://127.0.0.1:5000/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Something went wrong');
-      }
-
-      setMessage('User successfully registered!');
-    } catch (err) {
-      setError(err.message);
-    }
-  };*/
-
   return (
     <div className="flex justify-center items-center h-screen bg-gray-100">
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded shadow-md w-96">
+      <form  className="bg-white p-6 rounded shadow-md w-96">
         <h2 className="text-2xl font-bold mb-4">Sign Up</h2>
         
         {error && <p className="text-red-500 mb-2">{error}</p>}
