@@ -1,33 +1,33 @@
 'use client';
 import { useState } from 'react';
 import { supabase } from '@/config/supabaseClient';
+import { redirect, useRouter } from 'next/navigation';
 
-const Signup = () => {
+const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
 
-  async function signUpNewUser(e) {
+  const router = useRouter();
+
+  async function login(e) {
     e.preventDefault(); 
     try {
-      const { data: userData, error } = await supabase.auth.signUp({
+      const { data: userData, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
-        options: {
-          emailRedirectTo: 'http://localhost:3000/login',
-        },
       });
 
       if (error) {
-        console.error('Error during sign-up:', error.message);
+        alert('Error during login:', error.message);
         return;
       }
 
-      if (userData) {
-        console.log('User signed up successfully:', userData);
-        alert("Verify Email To Continue. If You Don't See An Email, Check Spam Folder");
+      if(userData){
+        router.push('/')
       }
+
     } catch (err) {
       console.error('Unexpected error:', err);
     }
@@ -43,17 +43,17 @@ const Signup = () => {
 
   return (
     <div>
-      <form onSubmit={signUpNewUser}>
+      <form onSubmit={login}>
         <label>Email</label>
         <input type='text' name='email' value={formData.email} onChange={handleChange} />
         
         <label>Password</label>
         <input type='password' name='password' value={formData.password} onChange={handleChange} />
         
-        <button type='submit'>Sign Up</button>
+        <button type='submit'>Log in</button>
       </form>
     </div>
   );
 };
 
-export default Signup;
+export default Login;
