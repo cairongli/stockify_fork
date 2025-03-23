@@ -9,9 +9,13 @@ const createJestConfig = nextJest({
 const config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
+  transformIgnorePatterns: [
+    'node_modules/(?!(jose|@supabase/auth-helpers-nextjs|@supabase/auth-helpers-shared)/)'
+  ],
   moduleNameMapper: {
     '^@/components/(.*)$': '<rootDir>/src/components/$1',
-    '^@/app/(.*)$': '<rootDir>/src/app/$1'
+    '^@/app/(.*)$': '<rootDir>/src/app/$1',
+    '^@/(.*)$': '<rootDir>/src/$1'
   },
   testMatch: ['**/__tests__/**/*.test.js', '**/__tests__/**/*.test.jsx'],
   collectCoverage: true,
