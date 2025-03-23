@@ -1,37 +1,55 @@
+'use client';
 import { useState } from 'react';
-import supabase from '@/config/supabaseClient';
+import { supabase } from '@/config/supabaseClient';
 
 const Signup = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+
+  async function signUpNewUser(e) {
+    e.preventDefault(); 
+    try {
+      const { data: userData, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: 'http://localhost:3000/',
+        },
+      });
+
+      if (error) {
+        console.error('Error during sign-up:', error.message);
+        return;
+      }
+
+      if (userData) {
+        console.log('User signed up successfully:', userData);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+    }
+  }
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
-      <form  className="bg-white p-6 rounded shadow-md w-96">
-        <h2 className="text-2xl font-bold mb-4">Sign Up</h2>
+    <div>
+      <form onSubmit={signUpNewUser}>
+        <label>Email</label>
+        <input type='text' name='email' value={formData.email} onChange={handleChange} />
         
-        {error && <p className="text-red-500 mb-2">{error}</p>}
-        {message && <p className="text-green-500 mb-2">{message}</p>}
+        <label>Password</label>
+        <input type='password' name='password' value={formData.password} onChange={handleChange} />
         
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          className="w-full p-2 border rounded mb-4"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          className="w-full p-2 border rounded mb-4"
-          required
-        />
-        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded">
-          Sign Up
-        </button>
+        <button type='submit'>Sign Up</button>
       </form>
     </div>
   );
