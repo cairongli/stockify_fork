@@ -8,7 +8,7 @@ import {supabase} from '@/config/supabaseClient';
 import { useEffect, useState } from 'react';
 export default function Home() {
   //This is where we will store the user session
-  const [user, userState] = useState(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() =>{
     const fetchSession = async () => {
@@ -36,14 +36,19 @@ export default function Home() {
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navbar user={user} />
       {user ? (
+        <>
+        <Footer />
         <h1>LOGGED IN {user.email}</h1>
+        </>
+        
       ) : (
         <>
         <Hero />
         <Features />
+        <Footer />
         </>
       )}
-      <Footer />
+      
     </div>
   );
 }
