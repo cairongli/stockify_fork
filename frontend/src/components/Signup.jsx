@@ -27,6 +27,16 @@ const Signup = () => {
       if (userData) {
         console.log('User signed up successfully:', userData);
         alert("Verify Email To Continue. If You Don't See An Email, Check Spam Folder");
+
+        const { error: profileError } = await supabase
+        .from('profiles')
+        .insert([{ user_id: userData.user.id, wallet_amt: 10000.0 }]);
+      
+        if (profileError) {
+          console.error('Error creating profile:', profileError.message);
+        } else {
+          console.log('Profile created successfully');
+        }
       }
     } catch (err) {
       console.error('Unexpected error:', err);

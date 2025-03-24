@@ -28,7 +28,7 @@ export const config = {
        * - Image files (svg, png, jpg, etc.)
        * - Root path "/" for the homepage (login/signup)
        */
-      '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|^$|^/signup$).*)',
+      '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|^$|^/signup$|^/polygontest$).*)',
     ],
   }
   
