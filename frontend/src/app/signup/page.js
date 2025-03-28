@@ -1,7 +1,13 @@
 import Signup from '../../components/Signup'; 
+import Footer from '../../components/Footer';
 
 const SignupPage = () => {
-  return <Signup />;
+  return (
+    <>
+      <Signup />
+      <Footer />
+    </>
+  );
 };
 
 export default SignupPage;
