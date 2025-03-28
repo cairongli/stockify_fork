@@ -7,7 +7,8 @@ import Link from 'next/link';
 const Signup = () => {
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,7 +31,16 @@ const Signup = () => {
     visible: { y: 0, opacity: 1, transition: { duration: 0.5 } }
   };
   async function signUpNewUser(e) {
-    e.preventDefault(); 
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+    
     try {
       const { data: userData, error } = await supabase.auth.signUp({
         email: formData.email,
@@ -41,13 +51,14 @@ const Signup = () => {
       });
 
       if (error) {
+        setError(error.message);
         console.error('Error during sign-up:', error.message);
         return;
       }
 
       if (userData) {
+        setSuccess("Verification email sent! Please check your inbox (and spam folder).");
         console.log('User signed up successfully:', userData);
-        alert("Verify Email To Continue. If You Don't See An Email, Check Spam Folder");
 
         const { error: profileError } = await supabase
         .from('profiles')
@@ -60,7 +71,10 @@ const Signup = () => {
         }
       }
     } catch (err) {
+      setError('An unexpected error occurred');
       console.error('Unexpected error:', err);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -144,6 +158,27 @@ const Signup = () => {
               />
             </motion.div>
             
+            <motion.div className="mb-4" variants={itemVariants}>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                required
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className={`appearance-none relative block w-full px-3 py-3 border placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-gray-700 ${
+                  formData.confirmPassword && formData.password !== formData.confirmPassword
+                    ? 'border-red-500'
+                    : 'border-gray-600'
+                }`}
+                placeholder="Confirm password"
+              />
+              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <p className="mt-2 text-sm text-red-400">Passwords do not match</p>
+              )}
+            </motion.div>
           </div>
 
           <motion.div variants={itemVariants}>
