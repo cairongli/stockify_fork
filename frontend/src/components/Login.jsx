@@ -1,15 +1,26 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/config/supabaseClient';
-import { redirect, useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
-
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const redirectTo = searchParams.get('redirect') || '/';
+        router.push(redirectTo);
+      }
+    };
+    checkUser();
+  }, [router, searchParams]);
 
   async function login(e) {
     e.preventDefault(); 
@@ -25,7 +36,8 @@ const Login = () => {
       }
 
       if(userData){
-        router.push('/')
+        const redirectTo = searchParams.get('redirect') || '/';
+        router.push(redirectTo);
       }
 
     } catch (err) {

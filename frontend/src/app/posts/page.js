@@ -1,17 +1,20 @@
 'use client';
+import Posts from '@/components/Posts';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 
-import { useState, useEffect } from 'react';
-import PostList from '@/components/posts/PostList';
-import PostSubmissionForm from '@/components/posts/PostSubmissionForm';
-
-export default function PostsPage() {
-  const [posts, setPosts] = useState([]);
-
+const PostsPage = () => {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Posts</h1>
-      <PostSubmissionForm onPostCreated={(newPost) => setPosts([newPost, ...posts])} />
-      <PostList posts={posts} />
-    </div>
+    <>
+      <Navbar />
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <Posts />
+        </div>
+      </main>
+      <Footer />
+    </>
   );
-} 
+};
+
+export default PostsPage; 
