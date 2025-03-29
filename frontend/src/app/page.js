@@ -1,54 +1,29 @@
 'use client';
 
-import Navbar from '../components/Navbar';
-import Hero from '../components/Hero';
-import Features from '../components/Features';
-import Footer from '../components/Footer';
-import {supabase} from '@/config/supabaseClient';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/config/supabaseClient';
+import Navbar from '@/components/Navbar';
+import Hero from '@/components/Hero';
+import Features from '@/components/Features';
+import Footer from '@/components/Footer';
+
 export default function Home() {
-  //This is where we will store the user session
   const [user, setUser] = useState(null);
 
-  useEffect(() =>{
-    const fetchSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Error fetching session:', error.message);
-        return;
-      }
-      if (data?.session?.user) {
-        setUser(data.session.user);
-      }
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
     };
-
-    fetchSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)});
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
+    fetchUser();
   }, []);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
+    <main className="min-h-screen bg-black">
       <Navbar user={user} />
-      {user ? (
-        <>
-        <Footer />
-        <h1>LOGGED IN {user.email}</h1>
-        </>
-        
-      ) : (
-        <>
-        <Hero />
-        <Features />
-        <Footer />
-        </>
-      )}
-      
-    </div>
+      <Hero user={user} />
+      <Features />
+      <Footer />
+    </main>
   );
 }
