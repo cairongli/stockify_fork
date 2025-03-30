@@ -51,7 +51,7 @@ const Signup = () => {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `http://localhost:3000/login?redirect=${searchParams.get('redirect') || '/posts'}`,
+          emailRedirectTo: `http://localhost:3000/login?redirect=${searchParams.get('redirect') || '/'}`,
         },
       });
 
