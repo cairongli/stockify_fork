@@ -2,8 +2,9 @@
 
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import Link from 'next/link';
 
-const Hero = () => {
+const Hero = ({ user }) => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gray-900">
       {/* Full-width background image */}
@@ -35,15 +36,23 @@ const Hero = () => {
             <p className="text-xl md:text-2xl text-gray-300 mb-8">
               Master stock trading through our gamified platform. Practice with virtual money, learn from experience.
             </p>
-            <div className="space-y-4">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-blue-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-blue-700 transition-colors"
-              >
-                Start Trading Now
-              </motion.button>
-              <p className="text-gray-400 text-sm">No credit card required • Start with $100,000 virtual cash</p>
+            <div className="space-y-6">
+              {user ? (
+                <Link
+                  href="/explore"
+                  className="bg-blue-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-blue-700 transition-colors inline-block"
+                >
+                  Explore Stocks
+                </Link>
+              ) : (
+                <Link
+                  href="/auth"
+                  className="bg-blue-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-blue-700 transition-colors inline-block"
+                >
+                  Get Started
+                </Link>
+              )}
+              <p className="text-gray-400 text-sm block">No credit card required • Start with $100,000 virtual cash</p>
             </div>
           </motion.div>
 
