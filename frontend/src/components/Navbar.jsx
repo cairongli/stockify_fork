@@ -3,8 +3,9 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { supabase } from '@/config/supabaseClient';
-
-const Navbar = ({user}) => {
+import { globalUser } from '@/config/UserContext';
+const Navbar = () => {
+  const user = globalUser();
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
