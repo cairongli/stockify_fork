@@ -9,7 +9,8 @@ const Signup = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    user_name: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -66,7 +67,7 @@ const Signup = () => {
 
         const { error: profileError } = await supabase
         .from('profiles')
-        .insert([{ user_id: userData.user.id, wallet_amt: 10000.0 }]);
+        .insert([{ user_id: userData.user.id, wallet_amt: 10000.0, user_name: formData.user_name }]);
       
         if (profileError) {
           console.error('Error creating profile:', profileError.message);
@@ -163,6 +164,19 @@ const Signup = () => {
                 onChange={handleChange}
                 className="appearance-none relative block w-full px-3 py-3 border border-gray-600 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-gray-700"
                 placeholder="Email address"
+              />
+            </motion.div>
+
+            <motion.div className="mb-4" variants={itemVariants}>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">User Name</label>
+              <input
+                id="user_name"
+                name="user_name"
+                required
+                value={formData.user_name}
+                onChange={handleChange}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-600 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-gray-700"
+                placeholder="User Name"
               />
             </motion.div>
             
