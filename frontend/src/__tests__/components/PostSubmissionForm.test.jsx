@@ -1,10 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import PostSubmissionForm from '@/components/PostSubmissionForm'
+import { resetMocks } from '../helpers/supabaseTestClient'
 
 describe('PostSubmissionForm', () => {
   const mockOnSubmit = jest.fn()
 
   beforeEach(() => {
+    resetMocks()
     mockOnSubmit.mockClear()
   })
 
@@ -13,7 +15,7 @@ describe('PostSubmissionForm', () => {
     
     expect(screen.getByPlaceholderText("What's on your mind?")).toBeInTheDocument()
     expect(screen.getByText('0/500 characters')).toBeInTheDocument()
-    expect(screen.getByText('Post')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /post/i })).toBeInTheDocument()
   })
 
   it('updates character count as user types', () => {
@@ -28,7 +30,7 @@ describe('PostSubmissionForm', () => {
   it('disables submit button when content is empty', () => {
     render(<PostSubmissionForm onSubmit={mockOnSubmit} />)
     
-    const submitButton = screen.getByText('Post')
+    const submitButton = screen.getByRole('button', { name: /post/i })
     expect(submitButton).toBeDisabled()
   })
 
@@ -38,7 +40,7 @@ describe('PostSubmissionForm', () => {
     const textarea = screen.getByPlaceholderText("What's on your mind?")
     fireEvent.change(textarea, { target: { value: 'Test post' } })
     
-    const submitButton = screen.getByText('Post')
+    const submitButton = screen.getByRole('button', { name: /post/i })
     expect(submitButton).not.toBeDisabled()
   })
 
@@ -48,7 +50,7 @@ describe('PostSubmissionForm', () => {
     const textarea = screen.getByPlaceholderText("What's on your mind?")
     fireEvent.change(textarea, { target: { value: 'Test post' } })
     
-    const submitButton = screen.getByText('Post')
+    const submitButton = screen.getByRole('button', { name: /post/i })
     fireEvent.click(submitButton)
     
     await waitFor(() => {
@@ -63,13 +65,28 @@ describe('PostSubmissionForm', () => {
     const textarea = screen.getByPlaceholderText("What's on your mind?")
     fireEvent.change(textarea, { target: { value: 'Test post' } })
     
-    const submitButton = screen.getByText('Post')
+    const submitButton = screen.getByRole('button', { name: /post/i })
     fireEvent.click(submitButton)
     
     expect(screen.getByText('Posting...')).toBeInTheDocument()
     
     await waitFor(() => {
-      expect(screen.getByText('Post')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /post/i })).toBeInTheDocument()
+    })
+  })
+
+  it('clears form after successful submission', async () => {
+    render(<PostSubmissionForm onSubmit={mockOnSubmit} />)
+    
+    const textarea = screen.getByPlaceholderText("What's on your mind?")
+    fireEvent.change(textarea, { target: { value: 'Test post' } })
+    
+    const submitButton = screen.getByRole('button', { name: /post/i })
+    fireEvent.click(submitButton)
+    
+    await waitFor(() => {
+      expect(textarea.value).toBe('')
+      expect(screen.getByText('0/500 characters')).toBeInTheDocument()
     })
   })
 }) 

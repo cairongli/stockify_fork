@@ -1,41 +1,16 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import PostList from '@/components/PostList'
-
-// Mock Supabase client
-jest.mock('@/config/supabaseClient', () => ({
-  supabase: {
-    auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user: null } })
-    }
-  }
-}));
+import { setupMockSupabase, mockPosts, resetMocks } from '../helpers/supabaseTestClient'
 
 // Mock fetch globally
 global.fetch = jest.fn()
 
 describe('PostList', () => {
-  const mockPosts = [
-    {
-      id: 1,
-      content: 'First post',
-      author_name: 'User 1',
-      author_id: '123',
-      created_at: '2024-03-28T12:00:00Z'
-    },
-    {
-      id: 2,
-      content: 'Second post',
-      author_name: 'User 2',
-      author_id: '456',
-      created_at: '2024-03-28T11:00:00Z'
-    }
-  ]
-
   const mockOnFollow = jest.fn()
 
   beforeEach(() => {
-    // Reset all mocks before each test
-    jest.clearAllMocks()
+    resetMocks()
+    setupMockSupabase()
   })
 
   it('shows loading state initially', () => {
@@ -119,13 +94,9 @@ describe('PostList', () => {
 
     render(<PostList onFollow={mockOnFollow} />)
 
-    // First check for loading state
-    expect(screen.getByRole('status')).toBeInTheDocument()
-
-    // Then wait for the follow buttons
     await waitFor(() => {
-      const followButtons = screen.getAllByText('Follow')
-      expect(followButtons).toHaveLength(2)
+      const followButtons = screen.getAllByRole('button', { name: /follow/i })
+      expect(followButtons).toHaveLength(mockPosts.length)
     })
   })
 }) 

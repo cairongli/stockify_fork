@@ -1,22 +1,65 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import Navbar from '@/components/Navbar'
+import { globalUser } from '@/config/UserContext'
+
+// Mock Framer Motion
+jest.mock('framer-motion', () => ({
+  motion: {
+    nav: ({ children, ...props }) => <nav {...props}>{children}</nav>,
+    button: ({ children, ...props }) => <button {...props}>{children}</button>
+  }
+}))
+
+// Mock Next.js Link component
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ children, href }) => <a href={href}>{children}</a>
+}))
 
 // Mock the Supabase client
 jest.mock('@/config/supabaseClient', () => ({
-  createClientComponentClient: jest.fn(() => ({
+  supabase: {
     auth: {
-      getSession: jest.fn(() => Promise.resolve({ data: { session: null } }))
+      signOut: jest.fn(() => Promise.resolve({ error: null }))
     }
-  }))
+  }
+}))
+
+// Mock the UserContext
+jest.mock('@/config/UserContext', () => ({
+  globalUser: jest.fn()
 }))
 
 describe('Navbar', () => {
-  it('renders without crashing', () => {
-    render(<Navbar />)
-    // Add your assertions here based on your Navbar implementation
-    // For example:
-    // expect(screen.getByRole('navigation')).toBeInTheDocument()
+  beforeEach(() => {
+    jest.clearAllMocks()
   })
 
-  // Add more test cases as needed
+  it('renders login/signup buttons when user is not logged in', () => {
+    globalUser.mockReturnValue(null)
+    render(<Navbar />)
+    
+    expect(screen.getByText('Log In')).toBeInTheDocument()
+    expect(screen.getByText('Sign Up')).toBeInTheDocument()
+    expect(screen.queryByText('Log Out')).not.toBeInTheDocument()
+  })
+
+  it('renders logout button when user is logged in', () => {
+    globalUser.mockReturnValue({ id: 'test-user' })
+    render(<Navbar />)
+    
+    expect(screen.getByText('Log Out')).toBeInTheDocument()
+    expect(screen.queryByText('Log In')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sign Up')).not.toBeInTheDocument()
+  })
+
+  it('handles logout correctly', async () => {
+    globalUser.mockReturnValue({ id: 'test-user' })
+    render(<Navbar />)
+    
+    const logoutButton = screen.getByText('Log Out')
+    await fireEvent.click(logoutButton)
+    
+    expect(require('@/config/supabaseClient').supabase.auth.signOut).toHaveBeenCalled()
+  })
 }) 

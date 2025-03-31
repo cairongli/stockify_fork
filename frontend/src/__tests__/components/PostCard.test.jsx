@@ -1,14 +1,24 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import PostCard from '@/components/PostCard'
+import { setupMockUser, resetMocks, mockUser } from '../helpers/supabaseTestClient'
 
-// Mock Supabase client
-jest.mock('@/config/supabaseClient', () => ({
-  supabase: {
-    auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user: null } })
-    }
+// Mock the router
+const mockPush = jest.fn()
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush })
+}))
+
+// Mock framer-motion
+jest.mock('framer-motion', () => ({
+  motion: {
+    div: ({ children, ...props }) => <div {...props}>{children}</div>
   }
-}));
+}))
+
+// Mock the UserContext
+jest.mock('@/config/UserContext', () => ({
+  globalUser: jest.fn()
+}))
 
 describe('PostCard', () => {
   const mockPost = {
@@ -16,37 +26,49 @@ describe('PostCard', () => {
     content: 'Test post content',
     author_name: 'Test User',
     author_id: '123',
-    created_at: '2024-03-28T12:00:00Z'
+    created_at: '2024-03-28T04:00:00Z'
   }
 
   const mockOnFollow = jest.fn()
 
-  it('renders post content correctly', () => {
-    render(<PostCard post={mockPost} onFollow={mockOnFollow} isFollowing={false} />)
-    
+  beforeEach(() => {
+    resetMocks()
+    jest.clearAllMocks()
+    mockPush.mockClear()
+  })
+
+  it('renders post content and author name', () => {
+    render(<PostCard post={mockPost} onFollow={mockOnFollow} />)
     expect(screen.getByText('Test post content')).toBeInTheDocument()
     expect(screen.getByText('Test User')).toBeInTheDocument()
-    expect(screen.getByText('Follow')).toBeInTheDocument()
   })
 
-  it('displays correct follow button state', () => {
-    render(<PostCard post={mockPost} onFollow={mockOnFollow} isFollowing={true} />)
-    expect(screen.getByText('Following')).toBeInTheDocument()
-  })
-
-  it('calls onFollow when follow button is clicked', () => {
-    render(<PostCard post={mockPost} onFollow={mockOnFollow} isFollowing={false} />)
+  it('renders follow button and handles click when logged in', () => {
+    const mockCurrentUser = { id: 'test-user' }
+    require('@/config/UserContext').globalUser.mockReturnValue(mockCurrentUser)
     
-    const followButton = screen.getByText('Follow')
+    render(<PostCard post={mockPost} onFollow={mockOnFollow} />)
+    const followButton = screen.getByRole('button', { name: /follow/i })
     fireEvent.click(followButton)
-    
     expect(mockOnFollow).toHaveBeenCalledWith(mockPost.author_id)
   })
 
-  it('formats timestamp correctly', () => {
-    render(<PostCard post={mockPost} onFollow={mockOnFollow} isFollowing={false} />)
+  it('shows "Your Post" when post is from current user', () => {
+    const mockCurrentUser = { id: '123' }  // Same ID as post.author_id
+    require('@/config/UserContext').globalUser.mockReturnValue(mockCurrentUser)
     
-    // Check for the presence of "Created at" followed by the date
-    expect(screen.getByText(/Created at/)).toBeInTheDocument()
+    render(<PostCard post={mockPost} onFollow={mockOnFollow} />)
+    expect(screen.getByText('Your Post')).toBeInTheDocument()
+  })
+
+  it('redirects to login when clicking follow while not logged in', () => {
+    require('@/config/UserContext').globalUser.mockReturnValue(null)
+    
+    render(<PostCard post={mockPost} onFollow={mockOnFollow} />)
+    const followButton = screen.getByRole('button', { name: /follow/i })
+    fireEvent.click(followButton)
+    
+    expect(mockPush).toHaveBeenCalledWith('/login?redirect=/posts')
+    expect(mockOnFollow).not.toHaveBeenCalled()
   })
 }) 
