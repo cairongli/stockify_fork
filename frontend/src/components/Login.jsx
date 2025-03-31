@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/config/supabaseClient';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -13,16 +13,18 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        router.push('/');
+        const redirectTo = searchParams.get('redirect') || '/';
+        router.push(redirectTo);
       }
     };
     checkUser();
-  }, [router]);
+  }, [router, searchParams]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -58,7 +60,8 @@ const Login = () => {
       }
 
       if(userData) {
-        router.push('/');
+        const redirectTo = searchParams.get('redirect') || '/';
+        router.push(redirectTo);
       }
 
     } catch (err) {
@@ -101,81 +104,70 @@ const Login = () => {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="max-w-md w-full space-y-8 bg-white/10 backdrop-blur-lg p-8 rounded-2xl border border-white/20"
+        className="max-w-md w-full space-y-8 bg-gray-800 p-8 rounded-xl shadow-2xl"
       >
-        <motion.div variants={itemVariants} className="text-center">
-          <h2 className="text-3xl font-extrabold text-white">
-            Welcome Back
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+            Sign in to your account
           </h2>
-          <p className="mt-2 text-sm text-gray-300">
-            Sign in to your account to continue
-          </p>
-        </motion.div>
-
-        <motion.form variants={itemVariants} className="mt-8 space-y-6" onSubmit={login}>
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-          
-          <div className="space-y-4">
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={login}>
+          <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                Email address
-              </label>
+              <label htmlFor="email" className="sr-only">Email address</label>
               <input
                 id="email"
                 name="email"
                 type="email"
-                autoComplete="email"
                 required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-700 placeholder-gray-500 text-white bg-gray-700 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
                 value={formData.email}
                 onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                Password
-              </label>
+              <label htmlFor="password" className="sr-only">Password</label>
               <input
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
                 required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-700 placeholder-gray-500 text-white bg-gray-700 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
                 value={formData.password}
                 onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
 
+          {error && (
+            <div className="text-red-500 text-sm text-center">
+              {error}
+            </div>
+          )}
+
           <div>
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </motion.button>
           </div>
-        </motion.form>
+        </form>
 
-        <motion.div variants={itemVariants} className="text-center">
-          <p className="text-sm text-gray-300">
+        <div className="text-center">
+          <p className="text-sm text-gray-400">
             Don't have an account?{' '}
             <Link href="/signup" className="font-medium text-blue-400 hover:text-blue-300">
               Sign up
             </Link>
           </p>
-        </motion.div>
+        </div>
       </motion.div>
     </div>
   );

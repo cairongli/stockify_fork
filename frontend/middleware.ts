@@ -12,14 +12,13 @@ export async function middleware(req: NextRequest) {
   // If there's no session and the user is trying to access a protected route
   if (!session && req.nextUrl.pathname !== '/' && 
       req.nextUrl.pathname !== '/signup' && 
-      req.nextUrl.pathname !== '/login' && 
+      req.nextUrl.pathname !== '/login' &&
       req.nextUrl.pathname !== '/posts') {
-    return NextResponse.redirect(new URL('/', req.url));
+    return NextResponse.redirect(new URL('/login', req.url));
   }
 
   // If there's a session and the user is trying to access auth pages
-  if (session && (req.nextUrl.pathname === '/' || 
-      req.nextUrl.pathname === '/signup' || 
+  if (session && (req.nextUrl.pathname === '/signup' || 
       req.nextUrl.pathname === '/login')) {
     return NextResponse.redirect(new URL('/posts', req.url));
   }

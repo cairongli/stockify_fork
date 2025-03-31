@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     console.log('Fetching posts...');
@@ -14,6 +14,7 @@ export async function GET() {
         *,
         profiles:author (
           user_id,
+          user_name,
           wallet_amt
         )
       `)
@@ -32,7 +33,7 @@ export async function GET() {
       content: post.body,
       created_at: post.created_at,
       author_id: post.author,
-      author_name: post.profiles?.user_id || 'Anonymous'
+      author_name: post.profiles?.user_name || 'Anonymous'
     }));
 
     console.log('Transformed posts:', transformedPosts);
@@ -45,7 +46,7 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
     // Check if user is authenticated

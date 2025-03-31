@@ -1,18 +1,25 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import PostCard from './PostCard';
 
-const PostList = ({ onFollow }) => {
+const PostList = ({ onFollow, user }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const lastFetchTime = useRef(0);
+  const CACHE_DURATION = 5000; // 5 seconds cache
 
   useEffect(() => {
     fetchPosts();
   }, []);
 
   const fetchPosts = async () => {
+    const now = Date.now();
+    if (now - lastFetchTime.current < CACHE_DURATION) {
+      return; // Skip fetch if within cache duration
+    }
+
     try {
       setLoading(true);
       console.log('Fetching posts...');
@@ -23,6 +30,7 @@ const PostList = ({ onFollow }) => {
       const data = await response.json();
       console.log('Fetched posts data:', data);
       setPosts(data);
+      lastFetchTime.current = now;
     } catch (err) {
       setError(err.message);
       console.error('Error fetching posts:', err);
@@ -35,6 +43,7 @@ const PostList = ({ onFollow }) => {
   useEffect(() => {
     const handlePostCreated = () => {
       console.log('Post created, refreshing posts...');
+      lastFetchTime.current = 0; // Reset cache when new post is created
       fetchPosts();
     };
 
@@ -70,6 +79,7 @@ const PostList = ({ onFollow }) => {
           post={post}
           onFollow={onFollow}
           isFollowing={false} // TODO: Implement following state
+          showFollowButton={true} // Always show follow button
         />
       ))}
       {posts.length === 0 && (
