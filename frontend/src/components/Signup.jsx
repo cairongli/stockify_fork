@@ -3,16 +3,20 @@ import { useState } from 'react';
 import { supabase } from '@/config/supabaseClient';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    user_name: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -30,6 +34,7 @@ const Signup = () => {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1, transition: { duration: 0.5 } }
   };
+
   async function signUpNewUser(e) {
     e.preventDefault();
     setLoading(true);
@@ -46,7 +51,7 @@ const Signup = () => {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: 'http://localhost:3000/login',
+          emailRedirectTo: `http://localhost:3000/login?redirect=${searchParams.get('redirect') || '/'}`,
         },
       });
 
@@ -62,7 +67,7 @@ const Signup = () => {
 
         const { error: profileError } = await supabase
         .from('profiles')
-        .insert([{ user_id: userData.user.id, wallet_amt: 10000.0 }]);
+        .insert([{ user_id: userData.user.id, wallet_amt: 10000.0, user_name: formData.user_name }]);
       
         if (profileError) {
           console.error('Error creating profile:', profileError.message);
@@ -85,7 +90,6 @@ const Signup = () => {
       [name]: value,
     }));
   };
-
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 py-12 px-4 sm:px-6 lg:px-8">
@@ -162,6 +166,19 @@ const Signup = () => {
                 placeholder="Email address"
               />
             </motion.div>
+
+            <motion.div className="mb-4" variants={itemVariants}>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">User Name</label>
+              <input
+                id="user_name"
+                name="user_name"
+                required
+                value={formData.user_name}
+                onChange={handleChange}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-600 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-gray-700"
+                placeholder="User Name"
+              />
+            </motion.div>
             
             <motion.div className="mb-4" variants={itemVariants}>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">Password</label>
@@ -202,28 +219,28 @@ const Signup = () => {
           </div>
 
           <motion.div variants={itemVariants}>
-            <motion.button
+            <button
               type="submit"
               disabled={loading}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
               className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                loading ? 'bg-blue-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200`}
+                loading
+                  ? 'bg-blue-600/50 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+              }`}
             >
-              {loading ? 'Signing up...' : 'Sign up'}
-            </motion.button>
-          </motion.div>
-          
-          <motion.div className="text-center text-sm" variants={itemVariants}>
-            <p className="text-gray-400">
-              Already have an account?{' '}
-              <Link href="/login" className="font-medium text-blue-400 hover:text-blue-300 transition-colors duration-200">
-                Log in
-              </Link>
-            </p>
+              {loading ? 'Creating account...' : 'Create account'}
+            </button>
           </motion.div>
         </motion.form>
+
+        <motion.div className="text-center" variants={itemVariants}>
+          <p className="text-sm text-gray-400">
+            Already have an account?{' '}
+            <Link href={`/login?redirect=${searchParams.get('redirect') || '/posts'}`} className="font-medium text-blue-400 hover:text-blue-300">
+              Sign in
+            </Link>
+          </p>
+        </motion.div>
       </motion.div>
     </div>
   );

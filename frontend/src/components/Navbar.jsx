@@ -3,8 +3,10 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { supabase } from '@/config/supabaseClient';
+import { globalUser } from '@/config/UserContext';
 
-const Navbar = ({user}) => {
+const Navbar = () => {
+  const user = globalUser();
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -58,6 +60,9 @@ const Navbar = ({user}) => {
                 <Link href="#about" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">
                   About
                 </Link>
+                <Link href="/posts" className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">
+                  Posts
+                </Link>
                 <Link 
                   href="#ai-help" 
                   className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 flex items-center space-x-2"
@@ -72,9 +77,9 @@ const Navbar = ({user}) => {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="hidden md:block px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+                    className="px-4 py-2 text-blue-600 border border-blue-600 rounded-full hover:bg-blue-50 transition-colors"
                   >
-                    Login
+                    Log In
                   </motion.button>
                 </Link>
                 <Link href="/signup">

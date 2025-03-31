@@ -1,4 +1,6 @@
-import Signup from '../../components/Signup'; 
+'use client';
+
+import Signup from '../../components/Signup';
 import Footer from '../../components/Footer';
 
 const SignupPage = () => {
@@ -10,4 +12,4 @@ const SignupPage = () => {
   );
 };
 
-export default SignupPage;
+export default SignupPage; 

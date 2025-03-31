@@ -8,14 +8,16 @@ const createJestConfig = nextJest({
 // Add any custom config to be passed to Jest
 const config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testEnvironment: 'jest-environment-jsdom',
+  testEnvironment: 'jsdom',
+  transform: {
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
+  },
   transformIgnorePatterns: [
-    'node_modules/(?!(jose|@supabase/auth-helpers-nextjs|@supabase/auth-helpers-shared)/)'
+    '/node_modules/(?!(@supabase|jose|@auth|@stripe/stripe-js)/)',
   ],
+  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
   moduleNameMapper: {
-    '^@/components/(.*)$': '<rootDir>/src/components/$1',
-    '^@/app/(.*)$': '<rootDir>/src/app/$1',
-    '^@/(.*)$': '<rootDir>/src/$1'
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
   testMatch: ['**/__tests__/**/*.test.js', '**/__tests__/**/*.test.jsx'],
   collectCoverage: true,
