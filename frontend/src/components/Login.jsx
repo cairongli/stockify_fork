@@ -1,9 +1,9 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/config/supabaseClient';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -12,19 +12,8 @@ const Login = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const router = useRouter();
-  const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const redirectTo = searchParams.get('redirect') || '/';
-        router.push(redirectTo);
-      }
-    };
-    checkUser();
-  }, [router, searchParams]);
+  const router = useRouter();
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -60,8 +49,7 @@ const Login = () => {
       }
 
       if(userData) {
-        const redirectTo = searchParams.get('redirect') || '/';
-        router.push(redirectTo);
+        router.push('/');
       }
 
     } catch (err) {
@@ -85,89 +73,104 @@ const Login = () => {
       {/* Back arrow button in top left corner */}
       <motion.div 
         className="absolute top-6 left-6"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
       >
         <Link href="/">
-          <motion.button
+          <motion.div
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors cursor-pointer shadow-md"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            className="text-white hover:text-blue-400 transition-colors"
           >
-            ← Back
-          </motion.button>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+          </motion.div>
         </Link>
       </motion.div>
 
-      <motion.div
+      <motion.div 
+        className="max-w-md w-full space-y-8 bg-gray-800 p-10 rounded-xl shadow-2xl border border-gray-700"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="max-w-md w-full space-y-8 bg-gray-800 p-8 rounded-xl shadow-2xl"
       >
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
-            Sign in to your account
-          </h2>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={login}>
+        <motion.div variants={itemVariants}>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">Welcome back</h2>
+          <p className="mt-2 text-center text-sm text-gray-400">
+            Log in to continue your investing journey
+          </p>
+        </motion.div>
+        
+        {error && (
+          <motion.div 
+            className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded relative" 
+            role="alert"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <span className="block sm:inline">{error}</span>
+          </motion.div>
+        )}
+        
+        <motion.form className="mt-8 space-y-6" onSubmit={login} variants={itemVariants}>
           <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">Email address</label>
+            <motion.div className="mb-4" variants={itemVariants}>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
               <input
                 id="email"
                 name="email"
                 type="email"
+                autoComplete="email"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-700 placeholder-gray-500 text-white bg-gray-700 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
                 value={formData.email}
                 onChange={handleChange}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-600 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-gray-700"
+                placeholder="Email address"
               />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Password</label>
+            </motion.div>
+            
+            <motion.div className="mb-4" variants={itemVariants}>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">Password</label>
               <input
                 id="password"
                 name="password"
                 type="password"
+                autoComplete="current-password"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-700 placeholder-gray-500 text-white bg-gray-700 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
                 value={formData.password}
                 onChange={handleChange}
+                className="appearance-none relative block w-full px-3 py-3 border border-gray-600 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm bg-gray-700"
+                placeholder="Password"
               />
-            </div>
+            </motion.div>
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm text-center">
-              {error}
-            </div>
-          )}
-
-          <div>
+          <motion.div variants={itemVariants}>
             <motion.button
               type="submit"
               disabled={loading}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+                loading ? 'bg-blue-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200`}
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Logging in...' : 'Log in'}
             </motion.button>
-          </div>
-        </form>
-
-        <div className="text-center">
-          <p className="text-sm text-gray-400">
-            Don't have an account?{' '}
-            <Link href="/signup" className="font-medium text-blue-400 hover:text-blue-300">
-              Sign up
-            </Link>
-          </p>
-        </div>
+          </motion.div>
+          
+          <motion.div className="text-center text-sm" variants={itemVariants}>
+            <p className="text-gray-400">
+              Don't have an account?{' '}
+              <Link href="/signup" className="font-medium text-blue-400 hover:text-blue-300 transition-colors duration-200">
+                Sign up
+              </Link>
+            </p>
+          </motion.div>
+        </motion.form>
       </motion.div>
     </div>
   );
