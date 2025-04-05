@@ -49,8 +49,8 @@ jobs:
 
     - name: Setup Supabase CLI
       run: |
-        npm install -g supabase
-        supabase --version
+        npm install supabase --save-dev
+        npx supabase --version
 
     - name: Run Supabase tests
       env:
@@ -60,6 +60,6 @@ jobs:
         # Test Supabase connection
         npm run test:supabase
         # Test database migrations
-        supabase db reset
+        npx supabase db reset
         # Test database functions
-        supabase functions test 
+        npx supabase functions test 
