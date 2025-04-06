@@ -76,6 +76,22 @@ const TRADING_HOURS = {
   END: 16,    // 4:00 PM EST
 };
 
+// Add holiday list (2025 major US market holidays)
+const MARKET_HOLIDAYS = [
+  '2025-01-01', // New Year's Day
+  '2025-01-20', // Martin Luther King Jr. Day
+  '2025-02-17', // Presidents Day
+  '2025-04-18', // Good Friday
+  '2025-05-26', // Memorial Day
+  '2025-06-19', // Juneteenth
+  '2025-07-04', // Independence Day
+  '2025-09-01', // Labor Day
+  '2025-10-13', // Columbus Day
+  '2025-11-27', // Thanksgiving Day
+  '2025-12-24', // Christmas Eve (early close)
+  '2025-12-25', // Christmas Day
+];
+
 const MOCK_DATA = {
   'AAPL': { symbol: 'AAPL', name: 'Apple Inc.', price: 217.90, tradeValue: 39818617 },
   'TSLA': { symbol: 'TSLA', name: 'Tesla, Inc.', price: 263.55, tradeValue: 123530000 },
@@ -230,13 +246,27 @@ const Explore = () => {
   }, []);
 
   useEffect(() => {
-    // Check if market is open (9:30 AM - 4:00 PM EST)
+    // Check if market is open (9:30 AM - 4:00 PM EST, weekdays only, excluding holidays)
     const checkMarketHours = () => {
       const now = new Date();
       const estHour = now.getUTCHours() - 4; // Convert to EST
       const estMinutes = now.getUTCMinutes();
       const currentTimeInHours = estHour + (estMinutes / 60);
-      setIsMarketOpen(currentTimeInHours >= TRADING_HOURS.START && currentTimeInHours < TRADING_HOURS.END);
+      
+      // Check if it's a weekend (0 = Sunday, 6 = Saturday)
+      const isWeekend = now.getUTCDay() === 0 || now.getUTCDay() === 6;
+      
+      // Check if it's a holiday
+      const today = now.toISOString().split('T')[0];
+      const isHoliday = MARKET_HOLIDAYS.includes(today);
+      
+      // Market is open only on weekdays, during trading hours, and not on holidays
+      setIsMarketOpen(
+        !isWeekend && 
+        !isHoliday && 
+        currentTimeInHours >= TRADING_HOURS.START && 
+        currentTimeInHours < TRADING_HOURS.END
+      );
     };
 
     checkMarketHours();
