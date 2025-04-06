@@ -231,19 +231,18 @@ const Explore = () => {
 
   useEffect(() => {
     // Check if market is open (9:30 AM - 4:00 PM EST)
-    // const checkMarketHours = () => {
-    //   const now = new Date();
-    //   const estHour = now.getUTCHours() - 4; // Convert to EST
-    //   const estMinutes = now.getUTCMinutes();
-    //   const currentTimeInHours = estHour + (estMinutes / 60);
-    //   setIsMarketOpen(currentTimeInHours >= TRADING_HOURS.START && currentTimeInHours < TRADING_HOURS.END);
-    // };
+    const checkMarketHours = () => {
+      const now = new Date();
+      const estHour = now.getUTCHours() - 4; // Convert to EST
+      const estMinutes = now.getUTCMinutes();
+      const currentTimeInHours = estHour + (estMinutes / 60);
+      setIsMarketOpen(currentTimeInHours >= TRADING_HOURS.START && currentTimeInHours < TRADING_HOURS.END);
+    };
 
-    // checkMarketHours();
-    // const interval = setInterval(checkMarketHours, 60000); // Check every minute
-    setIsMarketOpen(true); // Always set market as open for testing
+    checkMarketHours();
+    const interval = setInterval(checkMarketHours, 60000); // Check every minute
 
-    // return () => clearInterval(interval);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
