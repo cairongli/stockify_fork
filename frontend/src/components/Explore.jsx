@@ -6,6 +6,7 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
+import TradeModal from './TradeModal';
 
 // UI Components
 const Card = React.forwardRef(({ className, ...props }, ref) => (
@@ -75,12 +76,19 @@ const TRADING_HOURS = {
   END: 16,    // 4:00 PM EST
 };
 
-const FEATURED_STOCKS = [
-  { symbol: 'AAPL', name: 'Apple Inc.', price: 217.90, tradeValue: 39818617 },
-  { symbol: 'TSLA', name: 'Tesla, Inc.', price: 172.45, tradeValue: 12567890 },
-  { symbol: 'MSFT', name: 'Microsoft Corporation', price: 428.74, tradeValue: 25678901 },
-  { symbol: 'AMZN', name: 'Amazon.com, Inc.', price: 180.38, tradeValue: 18765432 },
-];
+const MOCK_DATA = {
+  'AAPL': { symbol: 'AAPL', name: 'Apple Inc.', price: 217.90, tradeValue: 39818617 },
+  'TSLA': { symbol: 'TSLA', name: 'Tesla, Inc.', price: 263.55, tradeValue: 123530000 },
+  'MSFT': { symbol: 'MSFT', name: 'Microsoft Corporation', price: 378.80, tradeValue: 21630000 },
+  'AMZN': { symbol: 'AMZN', name: 'Amazon.com, Inc.', price: 192.72, tradeValue: 52540000 },
+  'GOOGL': { symbol: 'GOOGL', name: 'Alphabet Inc.', price: 152.50, tradeValue: 25630000 },
+  'META': { symbol: 'META', name: 'Meta Platforms Inc.', price: 486.35, tradeValue: 18720000 },
+  'NVDA': { symbol: 'NVDA', name: 'NVIDIA Corporation', price: 875.28, tradeValue: 35240000 },
+  'AMD': { symbol: 'AMD', name: 'Advanced Micro Devices', price: 178.90, tradeValue: 15920000 }
+};
+
+const FEATURED_STOCKS = Object.values(MOCK_DATA).slice(0, 4); // First 4 stocks
+const ALL_STOCKS = Object.values(MOCK_DATA); // All stocks for search
 
 const getCompanyName = (symbol) => {
   const companies = {
@@ -111,111 +119,37 @@ const formatVolume = (volume) => {
   return volume.toString();
 };
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
-const RATE_LIMIT_DELAY = 2000; // 2 seconds base delay
-const MAX_RETRIES = 3;
+const CACHE_DURATION = 60 * 1000; // Keep this for future use
+const API_REQUESTS_PER_MINUTE = 5; // Keep this for future use
+const REQUEST_INTERVAL = Math.ceil((60 * 1000) / API_REQUESTS_PER_MINUTE);
 
-const stockDataCache = new Map();
+const DataSource = {
+  MOCK: 'mock'
+};
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-const fetchStockData = async (symbol, retryCount = 0) => {
-    try {
-      // Check cache first and return if data is fresh
-      const cachedData = stockDataCache.get(symbol);
-      if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION && 
-          cachedData.data.price !== null && cachedData.data.tradeValue !== null) {
-        return cachedData.data;
-      }
-
-      const companyName = cachedData?.data?.name || symbol;
-      const apiKey = process.env.NEXT_PUBLIC_POLY_API_KEY;
-      if (!apiKey) {
-        throw new Error('API key not found');
-      }
-
-      // Get the latest price data with a single API call
-      const response = await fetch(
-        `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${apiKey}`
-      );
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        if (response.status === 429 && retryCount < MAX_RETRIES) {
-          // Exponential backoff with jitter
-          const delay = RATE_LIMIT_DELAY * Math.pow(2, retryCount) + Math.random() * 1000;
-          console.log(`Rate limited, retrying in ${delay}ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
-          await sleep(delay);
-          return fetchStockData(symbol, retryCount + 1);
-        }
-        throw new Error(data.message || `Failed to fetch data for ${symbol}. Status: ${response.status}`);
-      }
-
-      if (data.status === 'ERROR') {
-        throw new Error(data.message || 'Failed to fetch stock data');
-      }
-
-      if (!data.results || data.results.length === 0) {
-        // If no data available, use cached data if it exists, otherwise throw error
-        if (cachedData && cachedData.data.price !== null && cachedData.data.tradeValue !== null) {
-          console.log(`No new data available for ${symbol}, using cached data`);
-          return cachedData.data;
-        }
-        throw new Error(`No data available for ${symbol}. Please check if the symbol is correct.`);
-      }
-
-      // Extract the closing price (c) and volume (v) from the results
-      const latestData = data.results[0];
-      const result = {
-        symbol,
-        name: companyName,
-        tradeValue: latestData.v,  // Volume
-        price: latestData.c,       // Closing price
-      };
-
-      // Validate the data
-      if (typeof result.price !== 'number' || typeof result.tradeValue !== 'number') {
-        throw new Error(`Invalid data received for ${symbol}`);
-      }
-
-      // Cache the result
-      stockDataCache.set(symbol, {
-        data: result,
-        timestamp: Date.now()
-      });
-
-      return result;
-    } catch (error) {
-      console.error('Error in fetchStockData:', error);
-      
-      // If we have cached data and hit an error, return cached data as fallback
-      const cachedData = stockDataCache.get(symbol);
-      if (cachedData && cachedData.data.price !== null && cachedData.data.tradeValue !== null) {
-        console.log(`Error fetching fresh data for ${symbol}, using cached data`);
-        return cachedData.data;
-      }
-
-      // If no valid data available, throw error
-      if (error.message.includes('429')) {
-        throw new Error('API rate limit exceeded. Please try again in a few moments.');
-      }
-      throw new Error(error.message || 'Failed to fetch stock data. Please try again later.');
-    }
-  };
+const createStockData = (data, source) => ({
+  ...data,
+  dataSource: source,
+  lastUpdated: new Date().toLocaleTimeString()
+});
 
 const Explore = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [trendingStocks, setTrendingStocks] = useState([]);
+  const [trendingStocks, setTrendingStocks] = useState(FEATURED_STOCKS);
   const [featuredStocks, setFeaturedStocks] = useState(FEATURED_STOCKS);
-  const [isMarketOpen, setIsMarketOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isMarketOpen, setIsMarketOpen] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchResult, setSearchResult] = useState(null);
   const [user, setUser] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const dropdownRef = useRef(null);
+  const [selectedStock, setSelectedStock] = useState(null);
+  const [showTradeModal, setShowTradeModal] = useState(false);
+  const [userBalance, setUserBalance] = useState(0);
+  const [userPortfolio, setUserPortfolio] = useState({});
+  const [stockSymbolMap, setStockSymbolMap] = useState({});
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -228,6 +162,71 @@ const Explore = () => {
       setUser(session.user);
     };
     fetchUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Fetch user balance from profiles table
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('wallet_amt')
+            .eq('user_id', session.user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Error fetching profile:', profileError);
+            return;
+          }
+
+          // Fetch user's stock portfolio from userstock table with stock information
+          const { data: portfolioData, error: portfolioError } = await supabase
+            .from('userstock')
+            .select(`
+              stock_id,
+              amt_bought,
+              total_spent,
+              stock:stock (
+                tick
+              )
+            `)
+            .eq('user_id', session.user.id);
+
+          if (portfolioError) {
+            console.error('Error fetching portfolio:', portfolioError);
+            return;
+          }
+
+          if (profileData) {
+            setUserBalance(profileData.wallet_amt || 0);
+          }
+
+          if (portfolioData) {
+            const portfolio = {};
+            const symbolMap = {};
+            
+            portfolioData.forEach(item => {
+              const symbol = item.stock.tick;
+              portfolio[symbol] = {
+                quantity: item.amt_bought,
+                totalSpent: item.total_spent,
+                stockId: item.stock_id
+              };
+              symbolMap[item.stock_id] = symbol;
+            });
+            
+            setUserPortfolio(portfolio);
+            setStockSymbolMap(symbolMap);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
   }, []);
 
   useEffect(() => {
@@ -247,73 +246,18 @@ const Explore = () => {
   }, []);
 
   useEffect(() => {
-    const fetchTrendingStocks = async () => {
+    const fetchTrendingStocks = () => {
       try {
         setIsLoading(true);
         setError(null);
-        const symbols = ['AAPL', 'TSLA', 'MSFT', 'AMZN'];
-        
-        // Initialize with mock data that includes full company names
-        const mockData = [
-          { symbol: 'AAPL', name: 'Apple Inc.', price: 217.90, tradeValue: 39818617 },
-          { symbol: 'TSLA', name: 'Tesla, Inc.', price: 263.55, tradeValue: 123530000 },
-          { symbol: 'MSFT', name: 'Microsoft Corporation', price: 378.80, tradeValue: 21630000 },
-          { symbol: 'AMZN', name: 'Amazon.com, Inc.', price: 192.72, tradeValue: 52540000 }
-        ];
-        setTrendingStocks(mockData);
-        
-        // Fetch real data with delays between requests
-        const stocksData = [];
-        for (const symbol of symbols) {
-          try {
-            // Pre-cache the company name
-            const companyData = {
-              'AAPL': 'Apple Inc.',
-              'TSLA': 'Tesla, Inc.',
-              'MSFT': 'Microsoft Corporation',
-              'AMZN': 'Amazon.com, Inc.'
-            };
-            
-            // Cache the company name before fetching data
-            stockDataCache.set(symbol, {
-              data: {
-                symbol: symbol,
-                name: companyData[symbol],
-                price: null,
-                tradeValue: null
-              },
-              timestamp: Date.now()
-            });
-            
-            const data = await fetchStockData(symbol);
-            stocksData.push({
-              ...data,
-              name: companyData[symbol] || data.name // Ensure we use the full company name
-            });
-            // Add small delay between requests to avoid rate limits
-            await sleep(500);
-          } catch (error) {
-            console.error(`Error fetching data for ${symbol}:`, error);
-            // If error occurs, use mock data for this stock with full company name
-            const mockStock = mockData.find(s => s.symbol === symbol);
-            if (mockStock) stocksData.push(mockStock);
-          }
-        }
-        
-        if (stocksData.length > 0) {
-          const sortedStocks = stocksData.sort((a, b) => b.tradeValue - a.tradeValue);
-          setTrendingStocks(sortedStocks);
-        }
+        // Use a different subset of stocks for trending
+        const trendingData = Object.values(MOCK_DATA)
+          .sort((a, b) => b.tradeValue - a.tradeValue)
+          .slice(0, 4);
+        setTrendingStocks(trendingData);
       } catch (error) {
         console.error('Error in fetchTrendingStocks:', error);
-        setError('Unable to load stock data. Showing sample data instead.');
-        // Use mock data with full company names as fallback
-        setTrendingStocks([
-          { symbol: 'AAPL', name: 'Apple Inc.', price: 217.90, tradeValue: 39818617 },
-          { symbol: 'TSLA', name: 'Tesla, Inc.', price: 263.55, tradeValue: 123530000 },
-          { symbol: 'MSFT', name: 'Microsoft Corporation', price: 378.80, tradeValue: 21630000 },
-          { symbol: 'AMZN', name: 'Amazon.com, Inc.', price: 192.72, tradeValue: 52540000 }
-        ]);
+        setError('Unable to load trending stocks.');
       } finally {
         setIsLoading(false);
       }
@@ -342,64 +286,19 @@ const Explore = () => {
       return;
     }
 
-    try {
-      const apiKey = process.env.NEXT_PUBLIC_POLY_API_KEY;
-      // Increase limit and remove sorting to get more comprehensive results
-      const response = await fetch(
-        `https://api.polygon.io/v3/reference/tickers?search=${query}&limit=20&market=stocks&active=true&apiKey=${apiKey}`
-      );
-      
-      if (!response.ok) return;
-      
-      const data = await response.json();
-      if (data.results) {
-        const seenTickers = new Set();
-        const filteredResults = data.results
-          .filter(stock => {
-            // Prioritize exact matches first
-            const exactTickerMatch = stock.ticker.toUpperCase() === query.toUpperCase();
-            const startsWithMatch = stock.ticker.toUpperCase().startsWith(query.toUpperCase());
-            const containsMatch = stock.ticker.toUpperCase().includes(query.toUpperCase()) ||
-                                stock.name.toLowerCase().includes(query.toLowerCase());
-            
-            if (!seenTickers.has(stock.ticker) && (exactTickerMatch || startsWithMatch || containsMatch)) {
-              seenTickers.add(stock.ticker);
-              return true;
-            }
-            return false;
-          })
-          // Sort results to prioritize exact matches and "starts with" matches
-          .sort((a, b) => {
-            const aExact = a.ticker.toUpperCase() === query.toUpperCase();
-            const bExact = b.ticker.toUpperCase() === query.toUpperCase();
-            if (aExact && !bExact) return -1;
-            if (!aExact && bExact) return 1;
-            
-            const aStarts = a.ticker.toUpperCase().startsWith(query.toUpperCase());
-            const bStarts = b.ticker.toUpperCase().startsWith(query.toUpperCase());
-            if (aStarts && !bStarts) return -1;
-            if (!aStarts && bStarts) return 1;
-            
-            return a.ticker.localeCompare(b.ticker);
-          })
-          .map(stock => ({
-            ...stock,
-            displayName: stock.name.length > 30 
-              ? stock.name.substring(0, 30) + '...' 
-              : stock.name
-          }));
+    const filteredStocks = ALL_STOCKS
+      .filter(stock => 
+        stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
+        stock.name.toLowerCase().includes(query.toLowerCase())
+      )
+      .map(stock => ({
+        ticker: stock.symbol,
+        name: stock.name,
+        displayName: stock.name
+      }));
 
-        setSuggestions(filteredResults);
-        setShowSuggestions(true);
-      } else {
-        setSuggestions([]);
-        setShowSuggestions(false);
-      }
-    } catch (error) {
-      console.error('Error fetching suggestions:', error);
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
+    setSuggestions(filteredStocks);
+    setShowSuggestions(true);
   };
 
   const handleInputChange = (e) => {
@@ -410,20 +309,17 @@ const Explore = () => {
 
   const handleSuggestionClick = async (suggestion) => {
     setSearchQuery(suggestion.ticker);
-    // Cache the company name but don't set price/volume yet
-    stockDataCache.set(suggestion.ticker, {
-      data: {
-        symbol: suggestion.ticker,
-        name: suggestion.name,
-        tradeValue: null,  // Set to null to indicate price/volume need to be fetched
-        price: null
-      },
-      timestamp: Date.now()
-    });
     setShowSuggestions(false);
     setSuggestions([]);
-    // Trigger search
-    handleSearch({ preventDefault: () => {} });
+    // Trigger search with the selected stock
+    const stock = MOCK_DATA[suggestion.ticker];
+    if (stock) {
+      setSearchResult(stock);
+      setError(null);
+    } else {
+      setError('Stock not found. Please check the symbol and try again.');
+      setSearchResult(null);
+    }
   };
 
   const handleSearch = async (e) => {
@@ -433,80 +329,355 @@ const Explore = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const stockData = await fetchStockData(searchQuery.toUpperCase());
-      setSearchResult(stockData);
+      const stock = MOCK_DATA[searchQuery.toUpperCase()];
+      if (stock) {
+        setSearchResult(stock);
+      } else {
+        throw new Error('Stock not found. Please check the symbol and try again.');
+      }
     } catch (error) {
       console.error('Error searching stock:', error);
-      setError(error.message || 'Stock not found or error fetching data. Please check the symbol and try again.');
+      setError(error.message);
       setSearchResult(null);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleTrade = async (symbol, type, quantity) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error('User not authenticated');
+      }
+
+      const stock = trendingStocks.find(s => s.symbol === symbol) || 
+                   featuredStocks.find(s => s.symbol === symbol) ||
+                   searchResult;
+
+      if (!stock) {
+        throw new Error('Stock not found');
+      }
+
+      const currentPrice = stock.price;
+      const tradeCost = currentPrice * quantity;
+
+      // Get stock ID from the stock table
+      const { data: stockTableData, error: stockTableError } = await supabase
+        .from('stock')
+        .select('id')
+        .eq('tick', symbol)
+        .maybeSingle();
+
+      console.log('Stock lookup result:', { stockTableData, stockTableError });
+
+      let stockId;
+      if (!stockTableData) {
+        // Insert the stock if it doesn't exist
+        console.log('Inserting new stock:', { name: stock.name, tick: symbol });
+        const { data: newStock, error: insertError } = await supabase
+          .from('stock')
+          .insert({
+            name: symbol,
+            tick: symbol,
+            num_investors: 1
+          })
+          .select('id')
+          .single();
+
+        if (insertError) {
+          console.error('Error inserting stock:', insertError);
+          throw new Error(`Failed to create stock record: ${insertError.message || 'Unknown error'}`);
+        }
+        
+        console.log('New stock inserted:', newStock);
+        stockId = newStock.id;
+      } else {
+        stockId = stockTableData.id;
+      }
+
+      // Get current profile data
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('wallet_amt')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        throw new Error('Failed to fetch user profile');
+      }
+
+      const currentBalance = profileData.wallet_amt || 0;
+
+      // Get current stock holding
+      console.log('Fetching stock data for:', { userId: session.user.id, stockId });
+      const { data: stockData, error: stockError } = await supabase
+        .from('userstock')
+        .select('amt_bought, total_spent')
+        .eq('user_id', session.user.id)
+        .eq('stock_id', stockId)
+        .maybeSingle();
+
+      if (stockError) {
+        console.error('Error fetching stock data:', {
+          error: stockError,
+          userId: session.user.id,
+          stockId,
+          errorMessage: stockError.message,
+          errorDetails: stockError.details,
+          errorHint: stockError.hint
+        });
+        throw new Error(`Failed to fetch current stock holding: ${stockError.message || 'Unknown error'}`);
+      }
+
+      const currentQuantity = stockData?.amt_bought || 0;
+      const currentTotalSpent = stockData?.total_spent || 0;
+
+      if (type === 'buy') {
+        if (currentBalance < tradeCost) {
+          throw new Error(`Insufficient funds. Required: ${formatNumber(tradeCost)}, Available: ${formatNumber(currentBalance)}`);
+        }
+      } else if (type === 'sell') {
+        if (currentQuantity < quantity) {
+          throw new Error(`Insufficient shares. Required: ${quantity}, Available: ${currentQuantity}`);
+        }
+      }
+
+      // Calculate new values
+      const newQuantity = type === 'buy' ? currentQuantity + quantity : currentQuantity - quantity;
+      let newTotalSpent;
+      
+      if (type === 'buy') {
+        // When buying, add the new purchase cost to total spent
+        newTotalSpent = currentTotalSpent + tradeCost;
+      } else {
+        // When selling, reduce total spent proportionally to shares sold
+        const avgCostPerShare = currentTotalSpent / currentQuantity;
+        newTotalSpent = currentTotalSpent - (avgCostPerShare * quantity);
+      }
+
+      // Calculate the actual amount to add/subtract from wallet
+      const walletAdjustment = type === 'buy' ? -tradeCost : tradeCost;
+
+      // First, update the wallet balance
+      const { error: walletError } = await supabase
+        .from('profiles')
+        .update({
+          wallet_amt: currentBalance + walletAdjustment
+        })
+        .eq('user_id', session.user.id);
+
+      if (walletError) {
+        console.error('Wallet update error:', walletError);
+        throw new Error(`Failed to update wallet balance: ${walletError.message || 'Unknown error'}`);
+      }
+
+      // Then, handle the stock transaction
+      let tradeError;
+      if (newQuantity > 0) {
+        // Update or insert stock record
+        console.log('Upserting stock record:', {
+          userId: session.user.id,
+          stockId,
+          newQuantity,
+          newTotalSpent,
+          type
+        });
+        const { error } = await supabase
+          .from('userstock')
+          .upsert([{
+            user_id: session.user.id,
+            stock_id: stockId,
+            amt_bought: newQuantity,
+            total_spent: newTotalSpent
+          }], {
+            onConflict: 'user_id,stock_id',
+            ignoreDuplicates: false
+          });
+        tradeError = error;
+
+        // Update num_investors in stock table if this is a new investment
+        if (!stockData) {
+          // First get current num_investors
+          const { data: currentStock } = await supabase
+            .from('stock')
+            .select('num_investors')
+            .eq('id', stockId)
+            .single();
+
+          const currentInvestors = currentStock?.num_investors || 0;
+
+          await supabase
+            .from('stock')
+            .update({ num_investors: currentInvestors + 1 })
+            .eq('id', stockId);
+        }
+      } else {
+        // Delete the record if quantity is 0
+        console.log('Deleting stock record:', {
+          userId: session.user.id,
+          stockId
+        });
+        const { error } = await supabase
+          .from('userstock')
+          .delete()
+          .eq('user_id', session.user.id)
+          .eq('stock_id', stockId);
+        tradeError = error;
+
+        // Decrease num_investors in stock table
+        // First get current num_investors
+        const { data: currentStock } = await supabase
+          .from('stock')
+          .select('num_investors')
+          .eq('id', stockId)
+          .single();
+
+        const currentInvestors = currentStock?.num_investors || 0;
+        const newInvestors = Math.max(0, currentInvestors - 1);
+
+        await supabase
+          .from('stock')
+          .update({ num_investors: newInvestors })
+          .eq('id', stockId);
+      }
+
+      if (tradeError) {
+        // Rollback wallet update if stock transaction fails
+        await supabase
+          .from('profiles')
+          .update({
+            wallet_amt: currentBalance
+          })
+          .eq('user_id', session.user.id);
+
+        console.error('Trade error:', tradeError);
+        throw new Error(`Failed to execute trade: ${tradeError.message || 'Unknown error'}`);
+      }
+
+      // Fetch updated balance
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .select('wallet_amt')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (updateError) {
+        console.error('Error fetching updated balance:', updateError);
+      } else {
+        setUserBalance(updatedProfile.wallet_amt);
+      }
+
+      // Update portfolio in state
+      if (newQuantity > 0) {
+        setUserPortfolio(prev => ({
+          ...prev,
+          [symbol]: {
+            quantity: newQuantity,
+            totalSpent: newTotalSpent
+          }
+        }));
+      } else {
+        setUserPortfolio(prev => {
+          const newPortfolio = { ...prev };
+          delete newPortfolio[symbol];
+          return newPortfolio;
+        });
+      }
+
+    } catch (error) {
+      console.error('Error executing trade:', error);
+      throw error.message || 'Failed to execute trade';
+    }
+  };
+
   const renderStockCard = (stock) => (
-    <Card key={stock.symbol} className="p-4 bg-navy-900 border-navy-800 hover:border-blue-500 transition-all duration-300">
-      <h3 className="font-bold text-white">{stock.name}</h3>
-      <p className="text-sm text-blue-300">{stock.symbol}</p>
-      <p className="text-sm font-medium text-white mt-2">Price: {formatNumber(stock.price)}</p>
-      <p className="text-sm text-blue-300">Volume: {formatVolume(stock.tradeValue)}</p>
-      <Button
-        className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white border-none"
-        disabled={!isMarketOpen}
-      >
-        {isMarketOpen ? 'Trade' : 'Market Closed'}
-      </Button>
+    <Card 
+      key={stock.symbol} 
+      className="p-4 bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 shadow-md cursor-pointer"
+      onClick={() => {
+        if (isMarketOpen) {
+          setSelectedStock(stock);
+          setShowTradeModal(true);
+        }
+      }}
+    >
+      <div>
+        <h3 className="font-bold text-gray-900 dark:text-white">{stock.name}</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{stock.symbol}</p>
+      </div>
+      <p className="text-sm font-medium text-gray-900 dark:text-white mt-2">Price: {formatNumber(stock.price)}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400">Volume: {formatVolume(stock.tradeValue)}</p>
+      {!isMarketOpen && (
+        <p className="text-sm text-red-500 mt-2">Market Closed</p>
+      )}
     </Card>
   );
 
+  const renderPortfolioCard = (symbol) => {
+    const position = userPortfolio[symbol];
+    if (!position) return null;
+
+    const stock = trendingStocks.find(s => s.symbol === symbol) || 
+                 featuredStocks.find(s => s.symbol === symbol) ||
+                 (searchResult?.symbol === symbol ? searchResult : null);
+
+    if (!stock) return null;
+
+    const quantity = position.quantity;
+    const currentValue = stock.price * quantity;
+    const avgCostBasis = position.totalSpent / quantity;
+    const totalGainLoss = (stock.price - avgCostBasis) * quantity;
+    const percentageChange = ((stock.price - avgCostBasis) / avgCostBasis) * 100;
+    
+    return (
+      <Card 
+        key={symbol} 
+        className="p-4 bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 shadow-md cursor-pointer"
+        onClick={() => {
+          if (isMarketOpen) {
+            setSelectedStock(stock);
+            setShowTradeModal(true);
+          }
+        }}
+      >
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-bold text-gray-900 dark:text-white">{symbol}</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{quantity} shares</p>
+            </div>
+            <div className="text-right">
+              <p className="font-medium text-gray-900 dark:text-white">{formatNumber(currentValue)}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Current: {formatNumber(stock.price)}</p>
+            </div>
+          </div>
+          
+          <div className="border-t border-gray-100 dark:border-gray-700 pt-2 mt-1">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">Avg Cost: {formatNumber(avgCostBasis)}</p>
+              <p className={`text-sm font-medium ${percentageChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {percentageChange >= 0 ? '+' : ''}{percentageChange.toFixed(2)}%
+              </p>
+            </div>
+            <p className={`text-sm font-medium ${totalGainLoss >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {totalGainLoss >= 0 ? '+' : ''}{formatNumber(totalGainLoss)}
+            </p>
+          </div>
+        </div>
+        {!isMarketOpen && (
+          <p className="text-sm text-red-500 mt-2">Market Closed</p>
+        )}
+      </Card>
+    );
+  };
+
   // Add new useEffect for featured stocks
   useEffect(() => {
-    const fetchFeaturedStocks = async () => {
+    const fetchFeaturedStocks = () => {
       try {
-        const symbols = ['AAPL', 'TSLA', 'MSFT', 'AMZN'];
-        const stocksData = [];
-        
-        // Pre-cache company names
-        const companyData = {
-          'AAPL': 'Apple Inc.',
-          'TSLA': 'Tesla, Inc.',
-          'MSFT': 'Microsoft Corporation',
-          'AMZN': 'Amazon.com, Inc.'
-        };
-        
-        // Initialize cache with company names
-        for (const symbol of symbols) {
-          stockDataCache.set(symbol, {
-            data: {
-              symbol: symbol,
-              name: companyData[symbol],
-              price: null,
-              tradeValue: null
-            },
-            timestamp: Date.now()
-          });
-        }
-        
-        // Fetch real data for each stock
-        for (const symbol of symbols) {
-          try {
-            const data = await fetchStockData(symbol);
-            stocksData.push({
-              ...data,
-              name: companyData[symbol] || data.name
-            });
-            await sleep(500); // Add delay between requests
-          } catch (error) {
-            console.error(`Error fetching featured stock data for ${symbol}:`, error);
-            // Use mock data as fallback
-            const mockStock = FEATURED_STOCKS.find(s => s.symbol === symbol);
-            if (mockStock) stocksData.push(mockStock);
-          }
-        }
-        
-        if (stocksData.length > 0) {
-          setFeaturedStocks(stocksData);
-        }
+        setFeaturedStocks(FEATURED_STOCKS);
       } catch (error) {
         console.error('Error fetching featured stocks:', error);
       }
@@ -521,73 +692,111 @@ const Explore = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar user={user} />
       <div className="container mx-auto px-4 py-8 pt-28">
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold text-white mb-8">Explore Stocks</h1>
-          <div className="relative max-w-2xl" ref={dropdownRef}>
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type="text"
-                  placeholder="Search stocks by symbol (e.g., AAPL)"
-                  value={searchQuery}
-                  onChange={handleInputChange}
-                  onFocus={() => setShowSuggestions(true)}
-                  className="flex-1 bg-navy-900 border-navy-800 text-black placeholder-blue-300 focus:border-blue-500"
-                />
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    {suggestions.map((suggestion, index) => (
-                      <div
-                        key={`${suggestion.ticker}-${index}`}
-                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                        onClick={() => handleSuggestionClick(suggestion)}
-                      >
-                        <div className="font-medium text-gray-900">{suggestion.ticker}</div>
-                        <div className="text-sm text-gray-600 truncate">{suggestion.displayName}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <Button 
-                type="submit" 
-                disabled={isLoading}
-                className="bg-blue-600 hover:bg-blue-700 text-white border-none"
-              >
-                {isLoading ? 'Searching...' : 'Search'}
-              </Button>
-            </form>
+        {/* Main header section with balance */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Explore Stocks</h1>
+          <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-lg shadow-md border border-gray-100 dark:border-gray-700">
+            <p className="text-gray-900 dark:text-white text-lg">Balance: <span className="font-bold">{formatNumber(userBalance)}</span></p>
           </div>
-          {error && <p className="text-red-400 mt-2">{error}</p>}
-          {searchResult && (
-            <div className="mt-6">
-              <h2 className="text-2xl font-bold mb-4 text-white">Search Result</h2>
-              {renderStockCard(searchResult)}
-            </div>
-          )}
         </div>
 
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 text-white">Featured Stocks</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredStocks.map((stock) => renderStockCard(stock))}
-          </div>
-        </section>
-
-        <section>
-          <h2 className="text-2xl font-bold mb-6 text-white">Trending Stocks</h2>
-          {isLoading ? (
-            <p className="text-blue-300">Loading trending stocks...</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {trendingStocks.map(renderStockCard)}
+        <div className="grid grid-cols-12 gap-6">
+          {/* Main Content - Left Side */}
+          <div className="col-span-12 lg:col-span-9">
+            <div className="mb-12">
+              <div className="relative max-w-2xl mb-12" ref={dropdownRef}>
+                <form onSubmit={handleSearch} className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type="text"
+                      placeholder="Search stocks by symbol (e.g., AAPL)"
+                      value={searchQuery}
+                      onChange={handleInputChange}
+                      onFocus={() => setShowSuggestions(true)}
+                      className="flex-1 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {suggestions.map((suggestion, index) => (
+                          <div
+                            key={`${suggestion.ticker}-${index}`}
+                            className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                            onClick={() => handleSuggestionClick(suggestion)}
+                          >
+                            <div className="font-medium text-gray-900 dark:text-white">{suggestion.ticker}</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400 truncate">{suggestion.displayName}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {isLoading ? 'Searching...' : 'Search'}
+                  </Button>
+                </form>
+              </div>
+              {error && <p className="text-red-500 mt-2">{error}</p>}
+              {searchResult && (
+                <div className="mt-6">
+                  <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Search Result</h2>
+                  {renderStockCard(searchResult)}
+                </div>
+              )}
             </div>
-          )}
-        </section>
+
+            <section className="mb-12">
+              <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Featured Stocks</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {featuredStocks.map((stock) => renderStockCard(stock))}
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Trending Stocks</h2>
+              {isLoading ? (
+                <p className="text-blue-500">Loading trending stocks...</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {trendingStocks.map(renderStockCard)}
+                </div>
+              )}
+            </section>
+          </div>
+
+          {/* Stock List - Right Side */}
+          <div className="col-span-12 lg:col-span-3">
+            <div className="sticky top-28">
+              <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">My Stock List</h2>
+              <div className="space-y-3 max-h-[calc(100vh-150px)] overflow-y-auto pr-2">
+                {Object.keys(userPortfolio)
+                  .filter(symbol => userPortfolio[symbol].quantity > 0)
+                  .map(symbol => renderPortfolioCard(symbol))
+                }
+                {Object.keys(userPortfolio).length === 0 && (
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">No stocks owned yet. Start trading to build your portfolio!</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+      {showTradeModal && selectedStock && (
+        <TradeModal
+          stock={selectedStock}
+          onClose={() => {
+            setShowTradeModal(false);
+            setSelectedStock(null);
+          }}
+          onTrade={handleTrade}
+        />
+      )}
     </div>
   );
 };
