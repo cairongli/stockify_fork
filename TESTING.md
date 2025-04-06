@@ -8,11 +8,11 @@
   - Built-in coverage reporting
   - Easy-to-read test syntax
 
-### Backend
-- **Pytest**
-  - Python's most popular testing framework
-  - Simple test writing
-  - Excellent coverage reporting
+### Backend (Supabase)
+- **Supabase Testing**
+  - Local development with Supabase CLI
+  - Integration tests with Supabase client
+  - Database migrations testing
 
 ## Directory Structure
 ```
@@ -22,9 +22,6 @@ stockify/
 │   │   ├── __tests__/          # Frontend tests
 │   │   │   └── components/     # Component tests
 │   │   └── components/         # React components
-├── backend/
-│   ├── app.py                  # Flask application
-│   └── tests/                  # Backend tests
 ```
 
 ## Running Tests Locally
@@ -41,19 +38,16 @@ npm test
 npm test -- --coverage
 ```
 
-### Backend Tests
+### Supabase Tests
 ```bash
-# Navigate to backend directory
-cd backend
+# Start local Supabase
+supabase start
 
-# Activate virtual environment
-source venv/bin/activate
+# Run database migrations
+supabase db reset
 
-# Run tests
-pytest -v
-
-# Run with coverage
-pytest --cov=. tests/
+# Test database functions
+supabase functions test
 ```
 
 ## Example Tests
@@ -71,12 +65,17 @@ describe('Navbar', () => {
 });
 ```
 
-### Backend API Test
-```python
-def test_hello_world(client):
-    response = client.get('/')
-    assert response.status_code == 200
-    assert response.json['message'] == "Hello, world!"
+### Supabase Integration Test
+```javascript
+import { createClient } from '@supabase/supabase-js'
+
+describe('Supabase Integration', () => {
+  it('connects to Supabase', async () => {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+    const { data, error } = await supabase.from('your_table').select('*')
+    expect(error).toBeNull()
+  })
+})
 ```
 
 ## Continuous Integration
@@ -87,14 +86,14 @@ Tests run automatically on:
 - Every push to test-engineering branch
 
 ### GitHub Actions Workflow
-- Runs frontend and backend tests separately
+- Runs frontend tests
+- Tests Supabase migrations
 - Reports test results
 - Shows test coverage
 - Fails if tests fail
 
 ## Coverage Requirements
 - Frontend: 80% minimum
-- Backend: 85% minimum
 
 ## Helpful Resources
 
@@ -102,6 +101,6 @@ Tests run automatically on:
 - [Jest Docs](https://jestjs.io/docs/getting-started)
 - [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
 
-### Backend Testing
-- [Pytest Docs](https://docs.pytest.org/)
-- [Flask Testing](https://flask.palletsprojects.com/en/2.0.x/testing/) 
+### Supabase Testing
+- [Supabase Testing Guide](https://supabase.com/docs/guides/testing)
+- [Supabase CLI](https://supabase.com/docs/reference/cli) 

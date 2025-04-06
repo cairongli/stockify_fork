@@ -1,21 +1,17 @@
 # Stockify
 
-backendSetUp
-# Running Flask Backend
-## Install dependencies from 'requirements.txt' file (it's better to have a virtual environment first) 
-`pip install -r requirements.txt`
+## Backend
+This project uses Supabase as the backend service. Supabase provides:
+- Authentication
+- Database
+- Real-time subscriptions
+- Storage
+- Edge Functions
 
-## Initialize the Database
-`flask db upgrade`
-
-## Run the flask app
-`flask run`
-=======
 ## Testing Setup
 
 This project uses:
 - Frontend: Jest + React Testing Library
-- Backend: Pytest
 - Continuous Integration via GitHub Actions
 
 ### Quick Start
@@ -25,10 +21,8 @@ This project uses:
 cd frontend
 npm test
 
-# Backend Tests
-cd backend
-source venv/bin/activate  # Activate virtual environment
-pytest -v                 # Run tests
+# Run tests in watch mode
+npm run test:watch
 ```
 
 For detailed testing information, see [TESTING.md](TESTING.md)
