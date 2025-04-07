@@ -22,18 +22,15 @@ const PostList = ({ onFollow, user }) => {
 
     try {
       setLoading(true);
-      console.log('Fetching posts...');
       const response = await fetch('/api/posts');
       if (!response.ok) {
         throw new Error('Failed to fetch posts');
       }
       const data = await response.json();
-      console.log('Fetched posts data:', data);
       setPosts(data);
       lastFetchTime.current = now;
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching posts:', err);
     } finally {
       setLoading(false);
     }
@@ -42,7 +39,6 @@ const PostList = ({ onFollow, user }) => {
   // Listen for custom event to refresh posts
   useEffect(() => {
     const handlePostCreated = () => {
-      console.log('Post created, refreshing posts...');
       lastFetchTime.current = 0; // Reset cache when new post is created
       fetchPosts();
     };

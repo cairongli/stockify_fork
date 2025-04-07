@@ -74,24 +74,20 @@ const Navbar = () => {
               </div>
 
               <div className="flex items-center space-x-4">
-                <Link href="/login">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="px-4 py-2 text-blue-600 border border-blue-600 rounded-full hover:bg-blue-50 transition-colors"
-                  >
-                    Log In
-                  </motion.button>
-                </Link>
-                <Link href="/signup">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
-                  >
-                    Sign Up
-                  </motion.button>
-                </Link>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Link href="/login">
+                    <button className="px-4 py-2 text-blue-600 border border-blue-600 rounded-full hover:bg-blue-50 transition-colors">
+                      Log In
+                    </button>
+                  </Link>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Link href="/signup">
+                    <button className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+                      Sign Up
+                    </button>
+                  </Link>
+                </motion.div>
               </div>
             </>
           )}
