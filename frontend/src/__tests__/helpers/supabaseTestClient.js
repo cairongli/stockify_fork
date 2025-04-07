@@ -1,4 +1,4 @@
-// Mock Supabase client for unit tests
+//Mock Supabase client for unit tests
 export const mockSupabase = {
   from: jest.fn(() => ({
     select: jest.fn().mockReturnThis(),
@@ -10,10 +10,14 @@ export const mockSupabase = {
   })),
   auth: {
     getUser: jest.fn().mockResolvedValue({ data: { user: null } }),
-    signIn: jest.fn(),
+    signUp: jest.fn(), 
+    signInWithPassword: jest.fn(), 
+    signIn: jest.fn(), 
     signOut: jest.fn(),
-  }
+  },
 };
+
+
 
 // Test data utilities
 export const mockPosts = [

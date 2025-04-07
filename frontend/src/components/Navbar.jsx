@@ -7,6 +7,7 @@ import { globalUser } from '@/config/UserContext';
 
 const Navbar = () => {
   const user = globalUser();
+  
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
