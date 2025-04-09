@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Navbar from './Navbar';
 import { supabase } from '@/config/supabaseClient';
 import * as React from "react";
@@ -7,6 +7,8 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import TradeModal from './TradeModal';
+import { getStockQuote, getCompanyProfile, searchStocks } from '@/config/finnhubClient';
+import { debounce } from 'lodash';
 
 // UI Components
 const Card = React.forwardRef(({ className, ...props }, ref) => (
@@ -92,29 +94,9 @@ const MARKET_HOLIDAYS = [
   '2025-12-25', // Christmas Day
 ];
 
-const MOCK_DATA = {
-  'AAPL': { symbol: 'AAPL', name: 'Apple Inc.', price: 217.90, tradeValue: 39818617 },
-  'TSLA': { symbol: 'TSLA', name: 'Tesla, Inc.', price: 263.55, tradeValue: 123530000 },
-  'MSFT': { symbol: 'MSFT', name: 'Microsoft Corporation', price: 378.80, tradeValue: 21630000 },
-  'AMZN': { symbol: 'AMZN', name: 'Amazon.com, Inc.', price: 192.72, tradeValue: 52540000 },
-  'GOOGL': { symbol: 'GOOGL', name: 'Alphabet Inc.', price: 152.50, tradeValue: 25630000 },
-  'META': { symbol: 'META', name: 'Meta Platforms Inc.', price: 486.35, tradeValue: 18720000 },
-  'NVDA': { symbol: 'NVDA', name: 'NVIDIA Corporation', price: 875.28, tradeValue: 35240000 },
-  'AMD': { symbol: 'AMD', name: 'Advanced Micro Devices', price: 178.90, tradeValue: 15920000 }
-};
-
-const FEATURED_STOCKS = Object.values(MOCK_DATA).slice(0, 4); // First 4 stocks
-const ALL_STOCKS = Object.values(MOCK_DATA); // All stocks for search
-
-const getCompanyName = (symbol) => {
-  const companies = {
-    'AAPL': 'Apple Inc.',
-    'TSLA': 'Tesla, Inc.',
-    'MSFT': 'Microsoft Corporation',
-    'AMZN': 'Amazon.com, Inc.',
-  };
-  return companies[symbol] || symbol;
-};
+// Define featured and trending stocks
+const FEATURED_STOCKS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN'];
+const TRENDING_STOCKS = ['TSLA', 'META', 'NVDA', 'AMD'];
 
 const formatNumber = (number) => {
   return new Intl.NumberFormat('en-US', {
@@ -126,13 +108,12 @@ const formatNumber = (number) => {
 };
 
 const formatVolume = (volume) => {
-  if (!volume) return '0';
-  if (volume >= 1000000) {
-    return `${(volume / 1000000).toFixed(2)}M`;
-  } else if (volume >= 1000) {
-    return `${(volume / 1000).toFixed(2)}K`;
-  }
-  return volume.toString();
+  if (volume === undefined || volume === null) return 'N/A';
+  if (volume === 0) return '0';
+  
+  // Always format in thousands (K)
+  const volumeInThousands = volume / 1000;
+  return `${volumeInThousands.toFixed(2)}K`;
 };
 
 const CACHE_DURATION = 60 * 1000; // Keep this for future use
@@ -140,7 +121,8 @@ const API_REQUESTS_PER_MINUTE = 5; // Keep this for future use
 const REQUEST_INTERVAL = Math.ceil((60 * 1000) / API_REQUESTS_PER_MINUTE);
 
 const DataSource = {
-  MOCK: 'mock'
+  MOCK: 'mock',
+  FINNHUB: 'finnhub'
 };
 
 const createStockData = (data, source) => ({
@@ -151,8 +133,8 @@ const createStockData = (data, source) => ({
 
 const Explore = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [trendingStocks, setTrendingStocks] = useState(FEATURED_STOCKS);
-  const [featuredStocks, setFeaturedStocks] = useState(FEATURED_STOCKS);
+  const [trendingStocks, setTrendingStocks] = useState([]);
+  const [featuredStocks, setFeaturedStocks] = useState([]);
   const [isMarketOpen, setIsMarketOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -161,11 +143,15 @@ const Explore = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const dropdownRef = useRef(null);
-  const [selectedStock, setSelectedStock] = useState(null);
+  const [selectedStocks, setSelectedStocks] = useState([]);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [userBalance, setUserBalance] = useState(0);
   const [userPortfolio, setUserPortfolio] = useState({});
   const [stockSymbolMap, setStockSymbolMap] = useState({});
+  const [stockData, setStockData] = useState({});
+  const [isLoadingStocks, setIsLoadingStocks] = useState(true);
+  const [loadingStates, setLoadingStates] = useState({});
+  const searchTimeoutRef = useRef(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -193,8 +179,7 @@ const Explore = () => {
             .single();
 
           if (profileError) {
-            console.error('Error fetching profile:', profileError);
-            return;
+            throw new Error('Failed to fetch profile');
           }
 
           // Fetch user's stock portfolio from userstock table with stock information
@@ -211,8 +196,7 @@ const Explore = () => {
             .eq('user_id', session.user.id);
 
           if (portfolioError) {
-            console.error('Error fetching portfolio:', portfolioError);
-            return;
+            throw new Error('Failed to fetch portfolio data');
           }
 
           if (profileData) {
@@ -238,7 +222,7 @@ const Explore = () => {
           }
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        setError('Error fetching user data');
       }
     };
 
@@ -275,30 +259,121 @@ const Explore = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch stock data for a given symbol
+  const fetchStockData = async (symbol) => {
+    try {
+      const [quote, profile] = await Promise.all([
+        getStockQuote(symbol),
+        getCompanyProfile(symbol)
+      ]);
+
+      // Update the stock data
+      setStockData(prevData => ({
+        ...prevData,
+        [symbol]: {
+          quote,
+          profile
+        }
+      }));
+    } catch (error) {
+      console.error('Error fetching stock data:', error);
+    }
+  };
+
+  // Update all stock data
+  const updateAllStockData = async () => {
+    setIsLoadingStocks(true);
+    try {
+      // Prepare all symbols to fetch
+      const allSymbols = [...FEATURED_STOCKS];
+      
+      // Add trending stocks that aren't in featured stocks
+      TRENDING_STOCKS.filter(symbol => !FEATURED_STOCKS.includes(symbol))
+        .forEach(symbol => allSymbols.push(symbol));
+      
+      // Add selected stock if any
+      if (selectedStocks.length > 0) {
+        allSymbols.push(...selectedStocks);
+      }
+
+      // Process stocks in parallel batches of 4 to balance speed and rate limiting
+      const batchSize = 4;
+      for (let i = 0; i < allSymbols.length; i += batchSize) {
+        const batch = allSymbols.slice(i, i + batchSize);
+        await Promise.all(batch.map(symbol => fetchStockData(symbol)));
+        
+        // Small delay between batches to avoid rate limiting
+        if (i + batchSize < allSymbols.length) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+    } catch (error) {
+      setError('Error updating stock data');
+    } finally {
+      setIsLoadingStocks(false);
+    }
+  };
+
+  // Update stock data periodically
   useEffect(() => {
-    const fetchTrendingStocks = () => {
+    // Initial load with featured stocks first
+    const loadInitialData = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
-        // Use a different subset of stocks for trending
-        const trendingData = Object.values(MOCK_DATA)
-          .sort((a, b) => b.tradeValue - a.tradeValue)
-          .slice(0, 4);
-        setTrendingStocks(trendingData);
+        // Load featured stocks first for faster initial render
+        const featuredPromises = FEATURED_STOCKS.slice(0, 2).map(symbol => fetchStockData(symbol));
+        await Promise.all(featuredPromises);
+        
+        // Then load the rest in the background
+        const remainingStocks = [...FEATURED_STOCKS.slice(2), ...TRENDING_STOCKS];
+        const loadRemainingStocks = async () => {
+          for (const symbol of remainingStocks) {
+            await fetchStockData(symbol);
+            // Small delay between requests to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          setIsLoadingStocks(false);
+        };
+        
+        // Start loading remaining stocks in the background
+        loadRemainingStocks();
       } catch (error) {
-        console.error('Error in fetchTrendingStocks:', error);
-        setError('Unable to load trending stocks.');
-      } finally {
-        setIsLoading(false);
+        console.error('Error loading initial data:', error);
+        setIsLoadingStocks(false);
       }
     };
 
-    fetchTrendingStocks();
+    loadInitialData();
+    
+    // Update stocks every minute if market is open
+    const interval = setInterval(() => {
+      if (isMarketOpen) {
+        updateAllStockData();
+      }
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [isMarketOpen]);
+
+  // Add a separate effect to handle selectedStock changes
+  useEffect(() => {
+    if (selectedStocks.length > 0 && !stockData[selectedStocks[0]]) {
+      fetchStockData(selectedStocks[0]);
+    }
+  }, [selectedStocks]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      // Only handle clicks outside the dropdown when suggestions are showing
+      if (showSuggestions && dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowSuggestions(false);
       }
     };
@@ -307,7 +382,7 @@ const Explore = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [showSuggestions]);
 
   const fetchStockSuggestions = async (query) => {
     if (!query.trim()) {
@@ -316,39 +391,115 @@ const Explore = () => {
       return;
     }
 
-    const filteredStocks = ALL_STOCKS
-      .filter(stock => 
-        stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
-        stock.name.toLowerCase().includes(query.toLowerCase())
-      )
-      .map(stock => ({
-        ticker: stock.symbol,
-        name: stock.name,
-        displayName: stock.name
-      }));
+    try {
+      // Show loading state immediately
+      setSuggestions([{ symbol: 'Loading...', name: '', displayName: 'Loading...' }]);
+      setShowSuggestions(true);
 
-    setSuggestions(filteredStocks);
-    setShowSuggestions(true);
+      const searchResults = await searchStocks(query);
+
+      if (searchResults && searchResults.length > 0) {
+        setSuggestions(searchResults);
+        setShowSuggestions(true);
+      } else {
+        setSuggestions([{ 
+          symbol: 'No results', 
+          name: 'Try a different search term', 
+          displayName: 'No matching stocks found' 
+        }]);
+        setShowSuggestions(true);
+        
+        // Hide "no results" message after 2 seconds
+        setTimeout(() => {
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+      setSuggestions([{ 
+        symbol: 'Error', 
+        name: 'Please try again', 
+        displayName: 'Failed to fetch results' 
+      }]);
+      setShowSuggestions(true);
+      
+      // Hide error message after 2 seconds
+      setTimeout(() => {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }, 2000);
+    }
   };
+
+  // Debounce the search with a shorter delay
+  const debouncedSearch = useCallback(
+    debounce((query) => {
+      if (query.trim().length >= 2) {
+        fetchStockSuggestions(query);
+      }
+    }, 300),
+    []
+  );
 
   const handleInputChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
-    fetchStockSuggestions(value);
+    
+    // Clear any existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Only search if we have at least 2 characters
+    if (value.trim().length >= 2) {
+      debouncedSearch(value);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
   };
 
   const handleSuggestionClick = async (suggestion) => {
-    setSearchQuery(suggestion.ticker);
-    setShowSuggestions(false);
-    setSuggestions([]);
-    // Trigger search with the selected stock
-    const stock = MOCK_DATA[suggestion.ticker];
-    if (stock) {
-      setSearchResult(stock);
-      setError(null);
-    } else {
-      setError('Stock not found. Please check the symbol and try again.');
-      setSearchResult(null);
+    // Don't process clicks on loading or error states
+    if (suggestion.symbol === 'Loading...' || suggestion.symbol === 'Error' || suggestion.symbol === 'No results') {
+      return;
+    }
+    
+    try {
+      // Set loading state for this stock
+      setLoadingStates(prev => ({ ...prev, [suggestion.symbol]: true }));
+      
+      const [quote, profile] = await Promise.all([
+        getStockQuote(suggestion.symbol),
+        getCompanyProfile(suggestion.symbol)
+      ]);
+
+      // Update the stock data first
+      setStockData(prevData => ({
+        ...prevData,
+        [suggestion.symbol]: {
+          quote,
+          profile
+        }
+      }));
+
+      // Clear search state
+      setSearchQuery('');
+      setSuggestions([]);
+      setShowSuggestions(false);
+
+      // Update selected stocks
+      setSelectedStocks(prevStocks => 
+        prevStocks.includes(suggestion.symbol) 
+          ? prevStocks 
+          : [suggestion.symbol]
+      );
+    } catch (error) {
+      console.error('Error handling suggestion click:', error);
+      setError(`Failed to load stock data for ${suggestion.symbol}`);
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [suggestion.symbol]: false }));
     }
   };
 
@@ -359,15 +510,21 @@ const Explore = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const stock = MOCK_DATA[searchQuery.toUpperCase()];
+      const symbol = searchQuery.toUpperCase();
+      const stock = await fetchStockData(symbol);
+      
       if (stock) {
         setSearchResult(stock);
+        // Add to stockData if not already present
+        setStockData(prev => ({
+          ...prev,
+          [symbol]: stock
+        }));
       } else {
         throw new Error('Stock not found. Please check the symbol and try again.');
       }
     } catch (error) {
-      console.error('Error searching stock:', error);
-      setError(error.message);
+      setError('Error searching stock');
       setSearchResult(null);
     } finally {
       setIsLoading(false);
@@ -381,15 +538,14 @@ const Explore = () => {
         throw new Error('User not authenticated');
       }
 
-      const stock = trendingStocks.find(s => s.symbol === symbol) || 
-                   featuredStocks.find(s => s.symbol === symbol) ||
-                   searchResult;
+      // Get stock data from stockData state
+      const stockInfo = stockData[symbol];
 
-      if (!stock) {
+      if (!stockInfo) {
         throw new Error('Stock not found');
       }
 
-      const currentPrice = stock.price;
+      const currentPrice = stockInfo.quote.c;
       const tradeCost = currentPrice * quantity;
 
       // Get stock ID from the stock table
@@ -399,12 +555,9 @@ const Explore = () => {
         .eq('tick', symbol)
         .maybeSingle();
 
-      console.log('Stock lookup result:', { stockTableData, stockTableError });
-
       let stockId;
       if (!stockTableData) {
         // Insert the stock if it doesn't exist
-        console.log('Inserting new stock:', { name: stock.name, tick: symbol });
         const { data: newStock, error: insertError } = await supabase
           .from('stock')
           .insert({
@@ -416,11 +569,9 @@ const Explore = () => {
           .single();
 
         if (insertError) {
-          console.error('Error inserting stock:', insertError);
           throw new Error(`Failed to create stock record: ${insertError.message || 'Unknown error'}`);
         }
         
-        console.log('New stock inserted:', newStock);
         stockId = newStock.id;
       } else {
         stockId = stockTableData.id;
@@ -434,15 +585,13 @@ const Explore = () => {
         .single();
 
       if (profileError) {
-        console.error('Profile fetch error:', profileError);
         throw new Error('Failed to fetch user profile');
       }
 
       const currentBalance = profileData.wallet_amt || 0;
 
       // Get current stock holding
-      console.log('Fetching stock data for:', { userId: session.user.id, stockId });
-      const { data: stockData, error: stockError } = await supabase
+      const { data: userStockData, error: stockError } = await supabase
         .from('userstock')
         .select('amt_bought, total_spent')
         .eq('user_id', session.user.id)
@@ -450,19 +599,11 @@ const Explore = () => {
         .maybeSingle();
 
       if (stockError) {
-        console.error('Error fetching stock data:', {
-          error: stockError,
-          userId: session.user.id,
-          stockId,
-          errorMessage: stockError.message,
-          errorDetails: stockError.details,
-          errorHint: stockError.hint
-        });
         throw new Error(`Failed to fetch current stock holding: ${stockError.message || 'Unknown error'}`);
       }
 
-      const currentQuantity = stockData?.amt_bought || 0;
-      const currentTotalSpent = stockData?.total_spent || 0;
+      const currentQuantity = userStockData?.amt_bought || 0;
+      const currentTotalSpent = userStockData?.total_spent || 0;
 
       if (type === 'buy') {
         if (currentBalance < tradeCost) {
@@ -479,10 +620,8 @@ const Explore = () => {
       let newTotalSpent;
       
       if (type === 'buy') {
-        // When buying, add the new purchase cost to total spent
         newTotalSpent = currentTotalSpent + tradeCost;
       } else {
-        // When selling, reduce total spent proportionally to shares sold
         const avgCostPerShare = currentTotalSpent / currentQuantity;
         newTotalSpent = currentTotalSpent - (avgCostPerShare * quantity);
       }
@@ -499,21 +638,12 @@ const Explore = () => {
         .eq('user_id', session.user.id);
 
       if (walletError) {
-        console.error('Wallet update error:', walletError);
         throw new Error(`Failed to update wallet balance: ${walletError.message || 'Unknown error'}`);
       }
 
       // Then, handle the stock transaction
       let tradeError;
       if (newQuantity > 0) {
-        // Update or insert stock record
-        console.log('Upserting stock record:', {
-          userId: session.user.id,
-          stockId,
-          newQuantity,
-          newTotalSpent,
-          type
-        });
         const { error } = await supabase
           .from('userstock')
           .upsert([{
@@ -528,7 +658,7 @@ const Explore = () => {
         tradeError = error;
 
         // Update num_investors in stock table if this is a new investment
-        if (!stockData) {
+        if (!userStockData) {
           // First get current num_investors
           const { data: currentStock } = await supabase
             .from('stock')
@@ -544,11 +674,6 @@ const Explore = () => {
             .eq('id', stockId);
         }
       } else {
-        // Delete the record if quantity is 0
-        console.log('Deleting stock record:', {
-          userId: session.user.id,
-          stockId
-        });
         const { error } = await supabase
           .from('userstock')
           .delete()
@@ -557,7 +682,6 @@ const Explore = () => {
         tradeError = error;
 
         // Decrease num_investors in stock table
-        // First get current num_investors
         const { data: currentStock } = await supabase
           .from('stock')
           .select('num_investors')
@@ -582,7 +706,6 @@ const Explore = () => {
           })
           .eq('user_id', session.user.id);
 
-        console.error('Trade error:', tradeError);
         throw new Error(`Failed to execute trade: ${tradeError.message || 'Unknown error'}`);
       }
 
@@ -593,9 +716,7 @@ const Explore = () => {
         .eq('user_id', session.user.id)
         .single();
 
-      if (updateError) {
-        console.error('Error fetching updated balance:', updateError);
-      } else {
+      if (!updateError) {
         setUserBalance(updatedProfile.wallet_amt);
       }
 
@@ -617,49 +738,74 @@ const Explore = () => {
       }
 
     } catch (error) {
-      console.error('Error executing trade:', error);
       throw error.message || 'Failed to execute trade';
     }
   };
 
-  const renderStockCard = (stock) => (
-    <Card 
-      key={stock.symbol} 
-      className="p-4 bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 shadow-md cursor-pointer"
-      onClick={() => {
-        if (isMarketOpen) {
-          setSelectedStock(stock);
-          setShowTradeModal(true);
-        }
-      }}
-    >
-      <div>
-        <h3 className="font-bold text-gray-900 dark:text-white">{stock.name}</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400">{stock.symbol}</p>
-      </div>
-      <p className="text-sm font-medium text-gray-900 dark:text-white mt-2">Price: {formatNumber(stock.price)}</p>
-      <p className="text-sm text-gray-600 dark:text-gray-400">Volume: {formatVolume(stock.tradeValue)}</p>
-      {!isMarketOpen && (
-        <p className="text-sm text-red-500 mt-2">Market Closed</p>
-      )}
-    </Card>
-  );
+  // Optimize the stock card rendering
+  const renderStockCard = (stock, symbol) => {
+    if (!stock || !stock.profile || !stock.quote) {
+      return (
+        <Card 
+          key={`loading-${symbol}`}
+          className="p-4 bg-white dark:bg-gray-800 animate-pulse"
+        >
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+        </Card>
+      );
+    }
+
+    const handleCardClick = (e) => {
+      // Stop event propagation to prevent click outside handler from firing
+      e.stopPropagation();
+      
+      // Only update selectedStocks if this is a search result card
+      if (selectedStocks.includes(symbol)) {
+        setSelectedStocks([symbol]);
+      }
+      
+      // Only show trade modal if market is open
+      if (isMarketOpen) {
+        setShowTradeModal(true);
+      }
+    };
+
+    return (
+      <Card 
+        key={stock.profile.ticker}
+        className={`p-4 bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 shadow-md ${isMarketOpen ? 'cursor-pointer' : ''}`}
+        onClick={handleCardClick}
+      >
+        <div>
+          <h3 className="font-bold text-gray-900 dark:text-white">{stock.profile.name}</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{stock.profile.ticker}</p>
+        </div>
+        <p className="text-sm font-medium text-gray-900 dark:text-white mt-2">
+          Price: {formatNumber(stock.quote.c)}
+        </p>
+        <p className={`text-sm ${stock.quote.dp >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+          {stock.quote.dp >= 0 ? '+' : ''}{stock.quote.dp.toFixed(2)}%
+        </p>
+        {!isMarketOpen && (
+          <p className="text-sm text-red-500 mt-2">Market Closed</p>
+        )}
+      </Card>
+    );
+  };
 
   const renderPortfolioCard = (symbol) => {
     const position = userPortfolio[symbol];
     if (!position) return null;
 
-    const stock = trendingStocks.find(s => s.symbol === symbol) || 
-                 featuredStocks.find(s => s.symbol === symbol) ||
-                 (searchResult?.symbol === symbol ? searchResult : null);
-
+    const stock = stockData[symbol];
     if (!stock) return null;
 
     const quantity = position.quantity;
-    const currentValue = stock.price * quantity;
+    const currentValue = stock.quote.c * quantity;
     const avgCostBasis = position.totalSpent / quantity;
-    const totalGainLoss = (stock.price - avgCostBasis) * quantity;
-    const percentageChange = ((stock.price - avgCostBasis) / avgCostBasis) * 100;
+    const totalGainLoss = (stock.quote.c - avgCostBasis) * quantity;
+    const percentageChange = ((stock.quote.c - avgCostBasis) / avgCostBasis) * 100;
     
     return (
       <Card 
@@ -667,7 +813,7 @@ const Explore = () => {
         className="p-4 bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 shadow-md cursor-pointer"
         onClick={() => {
           if (isMarketOpen) {
-            setSelectedStock(stock);
+            setSelectedStocks([symbol]);
             setShowTradeModal(true);
           }
         }}
@@ -680,7 +826,7 @@ const Explore = () => {
             </div>
             <div className="text-right">
               <p className="font-medium text-gray-900 dark:text-white">{formatNumber(currentValue)}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Current: {formatNumber(stock.price)}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Current: {formatNumber(stock.quote.c)}</p>
             </div>
           </div>
           
@@ -703,19 +849,6 @@ const Explore = () => {
     );
   };
 
-  // Add new useEffect for featured stocks
-  useEffect(() => {
-    const fetchFeaturedStocks = () => {
-      try {
-        setFeaturedStocks(FEATURED_STOCKS);
-      } catch (error) {
-        console.error('Error fetching featured stocks:', error);
-      }
-    };
-
-    fetchFeaturedStocks();
-  }, []);
-
   // If no user is authenticated, don't render the component
   if (!user) {
     return null;
@@ -737,7 +870,7 @@ const Explore = () => {
           {/* Main Content - Left Side */}
           <div className="col-span-12 lg:col-span-9">
             <div className="mb-12">
-              <div className="relative max-w-2xl mb-12" ref={dropdownRef}>
+              <div className="relative max-w-2xl mb-6" ref={dropdownRef}>
                 <form onSubmit={handleSearch} className="flex gap-2">
                   <div className="relative flex-1">
                     <Input
@@ -745,19 +878,23 @@ const Explore = () => {
                       placeholder="Search stocks by symbol (e.g., AAPL)"
                       value={searchQuery}
                       onChange={handleInputChange}
-                      onFocus={() => setShowSuggestions(true)}
+                      onFocus={() => {
+                        if (searchQuery.trim()) {
+                          setShowSuggestions(true);
+                        }
+                      }}
                       className="flex-1 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     />
-                    {showSuggestions && suggestions.length > 0 && (
+                    {showSuggestions && (
                       <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto">
                         {suggestions.map((suggestion, index) => (
                           <div
-                            key={`${suggestion.ticker}-${index}`}
+                            key={`${suggestion.symbol}-${index}`}
                             className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                             onClick={() => handleSuggestionClick(suggestion)}
                           >
-                            <div className="font-medium text-gray-900 dark:text-white">{suggestion.ticker}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400 truncate">{suggestion.displayName}</div>
+                            <div className="font-medium text-gray-900 dark:text-white">{suggestion.symbol}</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400 truncate">{suggestion.name}</div>
                           </div>
                         ))}
                       </div>
@@ -768,15 +905,18 @@ const Explore = () => {
                     disabled={isLoading}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    {isLoading ? 'Searching...' : 'Search'}
+                    Search
                   </Button>
                 </form>
               </div>
-              {error && <p className="text-red-500 mt-2">{error}</p>}
-              {searchResult && (
-                <div className="mt-6">
-                  <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Search Result</h2>
-                  {renderStockCard(searchResult)}
+
+              {/* Search Result Card */}
+              {selectedStocks.length > 0 && stockData[selectedStocks[0]] && (
+                <div className="mb-12">
+                  <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Search Result</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {renderStockCard(stockData[selectedStocks[0]], selectedStocks[0])}
+                  </div>
                 </div>
               )}
             </div>
@@ -784,19 +924,15 @@ const Explore = () => {
             <section className="mb-12">
               <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Featured Stocks</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {featuredStocks.map((stock) => renderStockCard(stock))}
+                {FEATURED_STOCKS.map(symbol => renderStockCard(stockData[symbol], symbol))}
               </div>
             </section>
 
             <section>
               <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Trending Stocks</h2>
-              {isLoading ? (
-                <p className="text-blue-500">Loading trending stocks...</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {trendingStocks.map(renderStockCard)}
-                </div>
-              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {TRENDING_STOCKS.map(symbol => renderStockCard(stockData[symbol], symbol))}
+              </div>
             </section>
           </div>
 
@@ -817,12 +953,12 @@ const Explore = () => {
           </div>
         </div>
       </div>
-      {showTradeModal && selectedStock && (
+      {showTradeModal && selectedStocks.length > 0 && stockData[selectedStocks[0]] && (
         <TradeModal
-          stock={selectedStock}
+          stock={stockData[selectedStocks[0]]}
           onClose={() => {
             setShowTradeModal(false);
-            setSelectedStock(null);
+            setSelectedStocks([]);
           }}
           onTrade={handleTrade}
         />

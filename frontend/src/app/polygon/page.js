@@ -1,8 +1,7 @@
-import Login from '../../components/Login';
-import Polygon from '../../components/PolygonAPITest';
+import { redirect } from 'next/navigation';
 
 const PolygonTestPage = () => {
-  return <Polygon />;
+  redirect('/explore');
 };
 
 export default PolygonTestPage;
