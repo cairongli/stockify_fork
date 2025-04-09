@@ -6,7 +6,8 @@ import { globalUser } from '@/config/UserContext'
 jest.mock('framer-motion', () => ({
   motion: {
     nav: ({ children, ...props }) => <nav {...props}>{children}</nav>,
-    button: ({ children, ...props }) => <button {...props}>{children}</button>
+    button: ({ children, ...props }) => <button {...props}>{children}</button>,
+    div: ({ children, ...props }) => <div {...props}>{children}</div>
   }
 }))
 
