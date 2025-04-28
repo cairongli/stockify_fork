@@ -1,15 +1,8 @@
-import axios from 'axios';
-
 const API_BASE_URL = 'https://finnhub.io/api/v1/';
+const API_KEY = process.env.NEXT_PUBLIC_FINNHUB_API_KEY;
 const MAX_RETRIES = 2;
 const RETRY_DELAY = 100;
 const CACHE_DURATION = 60000; // 1 minute cache duration
-
-// Create an axios instance for our proxy API with increased timeout
-const proxyClient = axios.create({
-  baseURL: '/api/finnhub',
-  timeout: 10000, // Increased timeout to 10 seconds
-});
 
 // Enhanced in-memory cache with prefetch support
 const cache = {
@@ -53,321 +46,142 @@ const cache = {
         this.searchCache.delete(cachedQuery);
       }
     }
+    
     return null;
   },
   
-  // Special set method for search results
   setSearchResults(query, results) {
-    query = query.toLowerCase();
-    this.searchCache.set(query, {
+    this.searchCache.set(query.toLowerCase(), {
       results,
       timestamp: Date.now()
     });
-    
-    // Limit cache size to prevent memory issues
-    if (this.searchCache.size > 100) {
-      const oldestKey = Array.from(this.searchCache.keys())[0];
-      this.searchCache.delete(oldestKey);
-    }
   },
   
   set(key, value) {
     this.data[key] = value;
     this.timestamps[key] = Date.now();
-    this.prefetchQueue.delete(key);
   },
   
   clear() {
     this.data = {};
     this.timestamps = {};
-    this.prefetchQueue.clear();
     this.searchCache.clear();
   }
 };
 
-// Helper function to delay execution
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Background refresh function
 const refreshInBackground = async (endpoint, symbol, params = {}) => {
   try {
-    const queryParams = new URLSearchParams({
-      endpoint,
-      symbol,
-      ...params
+    const url = new URL(`${API_BASE_URL}${endpoint}`);
+    url.searchParams.append('symbol', symbol);
+    url.searchParams.append('token', API_KEY);
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, value);
     });
-    const response = await proxyClient.get(`?${queryParams.toString()}`);
-    cache.set(`${endpoint}:${symbol}:${JSON.stringify(params)}`, response.data);
+
+    const response = await fetch(url.toString());
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    cache.set(`${endpoint}-${symbol}`, data);
   } catch (error) {
-    // Silently fail for background refreshes
+    console.error(`Error refreshing ${endpoint} for ${symbol}:`, error);
   }
 };
 
-// Helper function to make API requests with optimized retry logic and caching
 const makeRequest = async (endpoint, symbol, params = {}) => {
-  const cacheKey = `${endpoint}:${symbol}:${JSON.stringify(params)}`;
-  
-  // Check cache first
-  const cachedData = cache.get(cacheKey);
-  if (cachedData) {
-    return cachedData;
-  }
-
   let retries = 0;
-  while (retries < MAX_RETRIES) {
+  while (retries <= MAX_RETRIES) {
     try {
-      // Use a shorter delay for search endpoint
-      const delayTime = endpoint === 'search' ? 50 : 100;
-      await delay(delayTime);
-      
-      // Construct query parameters
-      const queryParams = new URLSearchParams();
-      queryParams.append('endpoint', endpoint);
-      
-      if (symbol) {
-        queryParams.append('symbol', symbol);
-      }
-      
+      const url = new URL(`${API_BASE_URL}${endpoint}`);
+      url.searchParams.append('symbol', symbol);
+      url.searchParams.append('token', API_KEY);
       Object.entries(params).forEach(([key, value]) => {
-        queryParams.append(key, value);
+        url.searchParams.append(key, value);
       });
 
-      // For search endpoint, use a longer timeout
-      const timeout = endpoint === 'search' ? 10000 : 5000;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-      try {
-        const response = await proxyClient.get(`?${queryParams.toString()}`, {
-          signal: controller.signal,
-          timeout: timeout // Set specific timeout for this request
-        });
-
-        clearTimeout(timeoutId);
-        
-        if (endpoint === 'search' && !response.data.result) {
-          return { result: [] };
-        }
-        
-        cache.set(cacheKey, response.data);
-        return response.data;
-      } catch (error) {
-        clearTimeout(timeoutId);
-        
-        // Handle timeout errors specifically
-        if (error.code === 'ECONNABORTED' || error.name === 'AbortError') {
-          console.error('Request timed out, retrying...');
-          if (retries === MAX_RETRIES - 1) {
-            // On last retry, return empty results instead of throwing
-            if (endpoint === 'search') {
-              return { result: [] };
-            }
-            throw new Error('Request timed out after all retries');
-          }
-        } else {
-          throw error;
-        }
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      
+      // Cache the successful response
+      cache.set(`${endpoint}-${symbol}`, data);
+      
+      // Start background refresh if cache is about to expire
+      if (Date.now() - cache.timestamps[`${endpoint}-${symbol}`] > CACHE_DURATION * 0.8) {
+        refreshInBackground(endpoint, symbol, params);
       }
+      
+      return data;
     } catch (error) {
-      if (retries === MAX_RETRIES - 1) {
-        // On last retry for search endpoint, return empty results
-        if (endpoint === 'search') {
-          return { result: [] };
-        }
-        throw error;
-      }
+      console.error(`Error fetching ${endpoint} for ${symbol}:`, error);
+      if (retries === MAX_RETRIES) throw error;
       retries++;
-      await delay(RETRY_DELAY * Math.pow(1.5, retries));
+      await delay(RETRY_DELAY * retries);
     }
   }
-  
-  // Fallback for search endpoint
-  if (endpoint === 'search') {
-    return { result: [] };
-  }
-  throw new Error('Request failed after all retries');
 };
 
 export const getStockQuote = async (symbol) => {
-  try {
-    // Get quote data
-    const quoteData = await makeRequest('quote', symbol);
-    
-    // For volume, we'll use a mock value based on the stock's price
-    // This is a temporary solution until we can get real volume data
-    let volume = 0;
-    
-    // Estimate volume based on price (higher priced stocks tend to have lower volume)
-    if (quoteData && quoteData.c) {
-      // Rough estimate: volume is inversely proportional to price
-      // For example, a $100 stock might have 1M volume, a $10 stock might have 10M volume
-      const price = quoteData.c;
-      if (price > 0) {
-        // Base volume of 10M for a $10 stock
-        volume = Math.floor(10000000 * (10 / price));
-        
-        // Add some randomness to make it look more realistic
-        const randomFactor = 0.8 + Math.random() * 0.4; // Random between 0.8 and 1.2
-        volume = Math.floor(volume * randomFactor);
-      }
-    }
-
-    const quote = {
-      c: quoteData.c || 0, // current price
-      d: quoteData.d || 0, // change
-      dp: quoteData.dp || 0, // percent change
-      h: quoteData.h || 0, // high
-      l: quoteData.l || 0, // low
-      o: quoteData.o || 0, // open
-      pc: quoteData.pc || 0, // previous close
-      t: quoteData.t || 0, // timestamp
-      v: volume // estimated volume
-    };
-    return quote;
-  } catch (error) {
-    // Return fallback data
-    return {
-      c: 0, // current price
-      d: 0, // change
-      dp: 0, // percent change
-      h: 0, // high
-      l: 0, // low
-      o: 0, // open
-      pc: 0, // previous close
-      t: 0, // timestamp
-      v: 0 // volume
-    };
-  }
+  return makeRequest('quote', symbol);
 };
 
 export const getCompanyProfile = async (symbol) => {
-  try {
-    const data = await makeRequest('stock/profile2', symbol);
-    return {
-      name: data.name || symbol,
-      country: data.country || 'Unknown',
-      currency: data.currency || 'USD',
-      exchange: data.exchange || 'Unknown',
-      ipo: data.ipo || null,
-      marketCapitalization: data.marketCapitalization || 0,
-      phone: data.phone || null,
-      shareOutstanding: data.shareOutstanding || 0,
-      ticker: data.ticker || symbol,
-      weburl: data.weburl || null,
-      logo: data.logo || null,
-      finnhubIndustry: data.finnhubIndustry || 'Unknown'
-    };
-  } catch (error) {
-    // Return fallback data
-    return {
-      name: symbol,
-      country: 'Unknown',
-      currency: 'USD',
-      exchange: 'Unknown',
-      ipo: null,
-      marketCapitalization: 0,
-      phone: null,
-      shareOutstanding: 0,
-      ticker: symbol,
-      weburl: null,
-      logo: null,
-      finnhubIndustry: 'Unknown'
-    };
-  }
+  return makeRequest('stock/profile2', symbol);
+};
+
+export const getCompanyNews = async (symbol) => {
+  return makeRequest('company-news', symbol, {
+    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    to: new Date().toISOString().split('T')[0]
+  });
 };
 
 export const searchStocks = async (query) => {
+  const cachedResults = cache.getSearchResults(query);
+  if (cachedResults) return cachedResults;
+
   try {
-    if (!query || query.length < 2) return [];
+    const url = new URL(`${API_BASE_URL}search`);
+    url.searchParams.append('q', query);
+    url.searchParams.append('token', API_KEY);
+
+    const response = await fetch(url.toString());
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
     
-    const data = await makeRequest('search', '', { q: query });
-    
-    if (!data || !data.result) {
-      console.error('Invalid response format:', data);
-      return [];
-    }
-    
-    const query_lower = query.toLowerCase();
-    const results = data.result
-      .filter(item => {
-        // Basic validation
-        if (!item.symbol || !item.description) return false;
-        
-        // Filter out test stocks
-        if (item.description.toLowerCase().includes('test')) return false;
-        
-        // Allow both common stocks and stocks without a type specified
-        if (item.type && item.type !== 'Common Stock' && item.type !== 'Stock') return false;
-        
-        // Allow symbols with letters and dots (for some international stocks)
-        if (!/^[A-Z.]+$/.test(item.symbol)) return false;
-        
-        // Limit symbol length to 6 characters (some valid stocks like BRK.A need this)
-        if (item.symbol.length > 6) return false;
-        
-        return true;
-      })
-      .map(item => ({
-        symbol: item.symbol,
-        name: item.description,
-        displayName: `${item.symbol} - ${item.description}`,
-        score: calculateRelevanceScore(item, query_lower)
-      }))
-      .sort((a, b) => b.score - a.score) // Sort by relevance score
-      .slice(0, 10)
-      .map(({ symbol, name, displayName }) => ({
-        symbol,
-        name,
-        displayName
-      }));
-    
-    return results;
+    // Cache the results
+    cache.setSearchResults(query, data);
+    return data;
   } catch (error) {
     console.error('Error searching stocks:', error);
-    throw error; // Let the component handle the error
+    throw error;
   }
 };
 
-// Helper function to calculate relevance score
 const calculateRelevanceScore = (item, query) => {
+  const queryLower = query.toLowerCase();
+  const symbolLower = item.symbol.toLowerCase();
+  const nameLower = item.description.toLowerCase();
+  
   let score = 0;
-  const symbol_lower = item.symbol.toLowerCase();
-  const name_lower = item.description.toLowerCase();
   
-  // Exact matches get highest priority
-  if (symbol_lower === query) score += 1000;
-  if (name_lower === query) score += 900;
-  
+  // Exact symbol match
+  if (symbolLower === queryLower) {
+    score += 100;
+  }
   // Symbol starts with query
-  if (symbol_lower.startsWith(query)) score += 800;
-  
-  // Company name starts with query
-  if (name_lower.startsWith(query)) score += 700;
-  
+  else if (symbolLower.startsWith(queryLower)) {
+    score += 50;
+  }
   // Symbol contains query
-  if (symbol_lower.includes(query)) score += 600;
+  else if (symbolLower.includes(queryLower)) {
+    score += 30;
+  }
   
-  // Company name contains query
-  if (name_lower.includes(query)) score += 500;
-  
-  // Bonus points for shorter symbols (they tend to be more established companies)
-  score += (7 - item.symbol.length) * 10;
-  
-  // Bonus points for exact word matches in company name
-  const queryWords = query.split(' ');
-  const nameWords = name_lower.split(' ');
-  queryWords.forEach(word => {
-    if (word.length > 1 && nameWords.includes(word)) {
-      score += 100;
-    }
-  });
-  
-  // Extra points for well-known exchanges
-  if (item.exchange) {
-    const exchange = item.exchange.toLowerCase();
-    if (exchange.includes('nyse') || exchange.includes('nasdaq')) {
-      score += 200;
-    }
+  // Name contains query
+  if (nameLower.includes(queryLower)) {
+    score += 20;
   }
   
   return score;
