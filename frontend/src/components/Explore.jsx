@@ -276,7 +276,6 @@ const Explore = () => {
         }
       }));
     } catch (error) {
-      console.error('Error fetching stock data:', error);
     }
   };
 
@@ -337,7 +336,6 @@ const Explore = () => {
         // Start loading remaining stocks in the background
         loadRemainingStocks();
       } catch (error) {
-        console.error('Error loading initial data:', error);
         setIsLoadingStocks(false);
       }
     };
