@@ -65,7 +65,7 @@ export async function GET(request) {
     
     try {
       // For search endpoint, use a shorter timeout
-      const timeout = endpoint === 'search' ? 5000 : 10000;
+      const timeout = endpoint === 'search' ? 10000 : 30000; // Increased timeout to 30 seconds
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -74,6 +74,7 @@ export async function GET(request) {
         headers: {
           'X-Finnhub-Token': FINNHUB_API_KEY,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         cache: 'no-store', // Disable caching
         signal: controller.signal
@@ -106,6 +107,15 @@ export async function GET(request) {
       return NextResponse.json(data);
     } catch (fetchError) {
       console.error('Error fetching from Finnhub API:', fetchError);
+      if (fetchError.name === 'AbortError') {
+        return NextResponse.json(
+          { 
+            error: 'Request timeout',
+            message: 'The request to Finnhub API timed out. Please try again later.'
+          }, 
+          { status: 504 }
+        );
+      }
       return NextResponse.json(
         { 
           error: 'Error fetching from Finnhub API',
