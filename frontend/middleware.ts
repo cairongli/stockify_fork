@@ -13,7 +13,8 @@ export async function middleware(req: NextRequest) {
   if (!session && req.nextUrl.pathname !== '/' && 
       req.nextUrl.pathname !== '/signup' && 
       req.nextUrl.pathname !== '/login' &&
-      req.nextUrl.pathname !== '/posts') {
+      req.nextUrl.pathname !== '/posts' &&
+      req.nextUrl.pathname !== '/news') {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
