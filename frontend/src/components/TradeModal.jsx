@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/config/supabaseClient';
-import { Button } from './ui/Button';
+import { Button } from './ui/button';
 
 const TradeModal = ({ stock, onClose, onTrade }) => {
   const [quantity, setQuantity] = useState(1);

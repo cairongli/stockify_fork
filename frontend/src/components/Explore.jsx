@@ -61,7 +61,7 @@ const buttonVariants = cva(
   }
 );
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
+const ExploreButton = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
   const Comp = asChild ? Slot : "button";
   return (
     <Comp
@@ -71,7 +71,7 @@ const Button = React.forwardRef(({ className, variant, size, asChild = false, ..
     />
   );
 });
-Button.displayName = "Button";
+ExploreButton.displayName = "ExploreButton";
 
 const TRADING_HOURS = {
   START: 9.5, // 9:30 AM EST
@@ -898,13 +898,13 @@ const Explore = () => {
                       </div>
                     )}
                   </div>
-                  <Button 
+                  <ExploreButton 
                     type="submit" 
                     disabled={isLoading}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     Search
-                  </Button>
+                  </ExploreButton>
                 </form>
               </div>
 
