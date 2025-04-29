@@ -4,7 +4,7 @@ resource "vercel_project" "this" {
 
   git_repository = {
     type = "github"
-    repo = "https://github.com/cairongli/stockify_fork"
+    repo = "cairongli/stockify_fork"
   }
 
   environment = [
