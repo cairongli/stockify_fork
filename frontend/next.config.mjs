@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  output: 'standalone',
   // Add proper error handling
   onDemandEntries: {
     // period (in ms) where the server will keep pages in the buffer
@@ -14,6 +15,8 @@ const nextConfig = {
     // Custom webpack config if needed
     return config;
   },
+  // Add basePath support if needed
+  // basePath: '/frontend'
 };
 
 export default nextConfig;

@@ -5,6 +5,11 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
+  // Make sure we're handling the root path properly
+  if (req.nextUrl.pathname === '/') {
+    return res;
+  }
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
