@@ -33,4 +33,4 @@ useEffect(() =>{
 return <UserContext.Provider value={user}>{children}</UserContext.Provider>
 };
 
-export const globalUser = () => useContext(UserContext);
+export const useGlobalUser = () => useContext(UserContext);

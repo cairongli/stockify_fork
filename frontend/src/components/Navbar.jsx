@@ -3,10 +3,10 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { supabase } from '@/config/supabaseClient';
-import { globalUser } from '@/config/UserContext';
+import { useGlobalUser } from '@/config/UserContext';
 
 const Navbar = () => {
-  const user = globalUser();
+  const user = useGlobalUser();
   
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
