@@ -275,8 +275,8 @@ const Profile = () => {
             ) : (
               <div className="grid gap-4">
                 {investedStocks.map((stock, index) => {
-                  const gainLoss = calculateGainLoss(stock.purchase_price, stock.stocks?.current_price);
-                  
+                  const gainLoss = calculateGainLoss(stock.total_spent/stock.amt_bought, stock.quote.c);
+                  const profit = ((stock.quote.c * stock.amt_bought) - stock.total_spent).toFixed(2);
                   return (
                     <Card key={index} className="p-4 hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-center">
@@ -285,7 +285,7 @@ const Profile = () => {
                           <p className="text-sm text-gray-600 dark:text-gray-400">{stock.stock_info.name}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">${Number(stock.stocks?.current_price).toFixed(2)}</p>
+                          <p className="font-semibold">${Number(stock.quote.c).toFixed(2)}</p>
                           <p className={`text-sm ${gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {gainLoss >= 0 ? '+' : ''}
                             {gainLoss.toFixed(2)}%
@@ -294,8 +294,10 @@ const Profile = () => {
                       </div>
                       <div className="mt-2 flex justify-between text-sm">
                         <span>Qty: {stock.amt_bought}</span>
-                        <span>Avg. Price: ${Number(stock.total_spent).toFixed(2)}</span>
-                        <span>Total: ${(stock.quantity * stock.stocks?.current_price).toFixed(2)}</span>
+                        <span>Total Spent: ${Number(stock.total_spent).toFixed(2)}</span>
+                        <span className={`text-sm ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            Your Profit: ${profit}
+                          </span>
                       </div>
                     </Card>
                   );
