@@ -4,6 +4,7 @@ import { supabase } from '@/config/supabaseClient';
 import { Card } from '@/components/ui/card';
 import Button from './ui/Button';
 import Posts from '@/components/Posts';
+import { getStockQuote, getCompanyProfile, searchStocks } from '@/config/finnhubClient';
 
 // Dummy data for testing
 const DUMMY_INVESTED_STOCKS = [
@@ -32,6 +33,7 @@ const Profile = () => {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [investedStocks, setInvestedStocks] = useState([]);
+  const [investedStocksInfo, setInvestedStocksInfo] = useState([]);
   const [followedStocks, setFollowedStocks] = useState([]);
   const [tradeHistory, setTradeHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('stocks');
@@ -39,6 +41,7 @@ const Profile = () => {
 
   // Fetch actual user data
   useEffect(() => {
+    const updatedStocks = [];
     const fetchUserData = async () => {
       setLoading(true);
       try {
@@ -83,15 +86,39 @@ const Profile = () => {
             stock (tick, name, num_investors)
           `)
           .eq('user_id', user.id);
-          setInvestedStocks(userStocks);
+          //setInvestedStocks(userStocks);
           
          if (stocksError) {
            console.error('Error fetching stocks:', stocksError);
          } else if (userStocks && userStocks.length > 0) {
-            console.log(userStocks);
-           setInvestedStocks(userStocks);
+           //setInvestedStocks(userStocks);
+
+           await Promise.all(userStocks.map(async (userStock) => {
+            const symbol = userStock.stock.tick;
+
+            try {
+              const [quote, profile] = await Promise.all([
+                getStockQuote(symbol),
+                getCompanyProfile(symbol),
+              ]);
+          
+              updatedStocks.push({
+                symbol,
+                quote,
+                profile,
+                amt_bought: userStock.amt_bought,
+                total_spent: userStock.total_spent,
+                stock_info: userStock.stock,
+              });
+            } catch (err) {
+              console.error(`Failed to fetch data for ${symbol}:`, err);
+            }
+           }));
            hasRealData = true;
          }
+         console.log(updatedStocks);
+         setInvestedStocks(updatedStocks);
+         
         
         // // Example: Fetch followed stocks (replace with your actual query)
         // // Typically this would be a separate table for stocks the user follows but doesn't own
@@ -164,7 +191,7 @@ const Profile = () => {
       </div>
     );
   }
-
+  console.log(investedStocks);
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Profile Header */}
@@ -254,8 +281,8 @@ const Profile = () => {
                     <Card key={index} className="p-4 hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-center">
                         <div>
-                          <h3 className="font-bold text-lg">{stock.stocks?.symbol}</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{stock.stocks?.name}</p>
+                          <h3 className="font-bold text-lg">{stock.symbol}</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{stock.stock_info.name}</p>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold">${Number(stock.stocks?.current_price).toFixed(2)}</p>
