@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/config/supabaseClient';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import Button from './ui/Button';
 import Posts from '@/components/Posts';
 
 // Dummy data for testing
@@ -51,75 +51,79 @@ const Profile = () => {
           return;
         }
 
-        // Fetch profile data from Supabase
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
+         // Fetch profile data from Supabase
+         const { data: profileData, error: profileError } = await supabase
+           .from('profiles')
+           .select('*')
+           .eq('user_id', user.id)
+           .single();
 
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-        } else if (profileData) {
-          setProfile(profileData);
+         if (profileError) {
+           console.error('Error fetching profile:', profileError);
+         } else if (profileData) {
+           setProfile(profileData);
           
-          // Set some placeholder follower counts for now
-          setFollowersCount(Math.floor(Math.random() * 50) + 5);
-          setFollowingCount(Math.floor(Math.random() * 30) + 3);
-        }
+           // Set some placeholder follower counts for now
+           setFollowersCount(Math.floor(Math.random() * 50) + 5);
+           setFollowingCount(Math.floor(Math.random() * 30) + 3);
+         }
 
-        let hasRealData = false;
+         let hasRealData = false;
 
-        // In a real implementation, you would fetch both invested and followed stocks
-        // This is just placeholder code - update with your actual database queries
+        // // In a real implementation, you would fetch both invested and followed stocks
+        // // This is just placeholder code - update with your actual database queries
         
-        // Example: Fetch invested stocks
-        const { data: userStocks, error: stocksError } = await supabase
-          .from('user_stocks')
+         // Example: Fetch invested stocks
+
+          const { data: userStocks, error: stocksError } = await supabase
+          .from('userstock')
           .select(`
-            quantity, purchase_price,
-            stocks:stock_id (symbol, name, current_price)
+            amt_bought,
+            total_spent,
+            stock (tick, name, num_investors)
           `)
           .eq('user_id', user.id);
-
-        if (stocksError) {
-          console.error('Error fetching stocks:', stocksError);
-        } else if (userStocks && userStocks.length > 0) {
           setInvestedStocks(userStocks);
-          hasRealData = true;
-        }
+          
+         if (stocksError) {
+           console.error('Error fetching stocks:', stocksError);
+         } else if (userStocks && userStocks.length > 0) {
+            console.log(userStocks);
+           setInvestedStocks(userStocks);
+           hasRealData = true;
+         }
         
-        // Example: Fetch followed stocks (replace with your actual query)
-        // Typically this would be a separate table for stocks the user follows but doesn't own
-        const { data: followedStocksData, error: followedStocksError } = await supabase
-          .from('followed_stocks') // Replace with your actual table name
-          .select(`
-            stocks:stock_id (symbol, name, current_price)
-          `)
-          .eq('user_id', user.id);
+        // // Example: Fetch followed stocks (replace with your actual query)
+        // // Typically this would be a separate table for stocks the user follows but doesn't own
+        // const { data: followedStocksData, error: followedStocksError } = await supabase
+        //   .from('followed_stocks') // Replace with your actual table name
+        //   .select(`
+        //     stocks:stock_id (symbol, name, current_price)
+        //   `)
+        //   .eq('user_id', user.id);
           
-        if (!followedStocksError && followedStocksData?.length > 0) {
-          // Format the data appropriately
-          setFollowedStocks(followedStocksData.map(item => item.stocks));
-          hasRealData = true;
-        }
+        // if (!followedStocksError && followedStocksData?.length > 0) {
+        //   // Format the data appropriately
+        //   setFollowedStocks(followedStocksData.map(item => item.stocks));
+        //   hasRealData = true;
+        // }
         
-        // If no real data was found, use dummy data for demonstration
-        if (!hasRealData) {
-          console.log("No real data found, using dummy data for UI demonstration");
-          setUseDummyData(true);
+        // // If no real data was found, use dummy data for demonstration
+        // if (!hasRealData) {
+        //   console.log("No real data found, using dummy data for UI demonstration");
+        //   setUseDummyData(true);
           
-          // Only set dummy data if real data wasn't found
-          if (!userStocks || userStocks.length === 0) {
-            setInvestedStocks(DUMMY_INVESTED_STOCKS);
-          }
+        //   // Only set dummy data if real data wasn't found
+        //   if (!userStocks || userStocks.length === 0) {
+        //     setInvestedStocks(DUMMY_INVESTED_STOCKS);
+        //   }
           
-          if (!followedStocksData || followedStocksData.length === 0) {
-            setFollowedStocks(DUMMY_FOLLOWED_STOCKS);
-          }
+        //   if (!followedStocksData || followedStocksData.length === 0) {
+        //     setFollowedStocks(DUMMY_FOLLOWED_STOCKS);
+        //   }
           
-          setTradeHistory(DUMMY_TRADE_HISTORY);
-        }
+        //   setTradeHistory(DUMMY_TRADE_HISTORY);
+        // }
         
       } catch (error) {
         console.error('Error in fetch user data:', error);
@@ -130,6 +134,7 @@ const Profile = () => {
       } finally {
         setLoading(false);
       }
+      
     };
 
     fetchUserData();
@@ -139,7 +144,7 @@ const Profile = () => {
     console.log("Changing tab to:", tab);
     setActiveTab(tab);
   };
-
+  
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
@@ -261,8 +266,8 @@ const Profile = () => {
                         </div>
                       </div>
                       <div className="mt-2 flex justify-between text-sm">
-                        <span>Qty: {stock.quantity}</span>
-                        <span>Avg. Price: ${Number(stock.purchase_price).toFixed(2)}</span>
+                        <span>Qty: {stock.amt_bought}</span>
+                        <span>Avg. Price: ${Number(stock.total_spent).toFixed(2)}</span>
                         <span>Total: ${(stock.quantity * stock.stocks?.current_price).toFixed(2)}</span>
                       </div>
                     </Card>
