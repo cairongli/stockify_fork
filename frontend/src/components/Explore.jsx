@@ -532,30 +532,22 @@ const Explore = () => {
   const handleTrade = async (symbol, type, quantity) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        throw new Error('User not authenticated');
-      }
-
-      // Get stock data from stockData state
+      if (!session?.user) throw new Error('User not authenticated');
+  
       const stockInfo = stockData[symbol];
-
-      if (!stockInfo) {
-        throw new Error('Stock not found');
-      }
-
+      if (!stockInfo) throw new Error('Stock not found');
+  
       const currentPrice = stockInfo.quote.c;
       const tradeCost = currentPrice * quantity;
-
-      // Get stock ID from the stock table
-      const { data: stockTableData, error: stockTableError } = await supabase
+  
+      const { data: stockTableData } = await supabase
         .from('stock')
         .select('id')
         .eq('tick', symbol)
         .maybeSingle();
-
+  
       let stockId;
       if (!stockTableData) {
-        // Insert the stock if it doesn't exist
         const { data: newStock, error: insertError } = await supabase
           .from('stock')
           .insert({
@@ -565,81 +557,56 @@ const Explore = () => {
           })
           .select('id')
           .single();
-
-        if (insertError) {
-          throw new Error(`Failed to create stock record: ${insertError.message || 'Unknown error'}`);
-        }
-        
+  
+        if (insertError) throw new Error(`Failed to create stock record: ${insertError.message}`);
         stockId = newStock.id;
       } else {
         stockId = stockTableData.id;
       }
-
-      // Get current profile data
+  
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('wallet_amt')
         .eq('user_id', session.user.id)
         .single();
-
-      if (profileError) {
-        throw new Error('Failed to fetch user profile');
-      }
-
+      if (profileError) throw new Error('Failed to fetch user profile');
+  
       const currentBalance = profileData.wallet_amt || 0;
-
-      // Get current stock holding
+  
       const { data: userStockData, error: stockError } = await supabase
         .from('userstock')
         .select('amt_bought, total_spent')
         .eq('user_id', session.user.id)
         .eq('stock_id', stockId)
         .maybeSingle();
-
-      if (stockError) {
-        throw new Error(`Failed to fetch current stock holding: ${stockError.message || 'Unknown error'}`);
-      }
-
+      if (stockError) throw new Error(`Failed to fetch current stock holding: ${stockError.message}`);
+  
       const currentQuantity = userStockData?.amt_bought || 0;
       const currentTotalSpent = userStockData?.total_spent || 0;
-
-      if (type === 'buy') {
-        if (currentBalance < tradeCost) {
-          throw new Error(`Insufficient funds. Required: ${formatNumber(tradeCost)}, Available: ${formatNumber(currentBalance)}`);
-        }
-      } else if (type === 'sell') {
-        if (currentQuantity < quantity) {
-          throw new Error(`Insufficient shares. Required: ${quantity}, Available: ${currentQuantity}`);
-        }
-      }
-
-      // Calculate new values
+  
+      if (type === 'buy' && currentBalance < tradeCost)
+        throw new Error(`Insufficient funds. Required: ${formatNumber(tradeCost)}, Available: ${formatNumber(currentBalance)}`);
+  
+      if (type === 'sell' && currentQuantity < quantity)
+        throw new Error(`Insufficient shares. Required: ${quantity}, Available: ${currentQuantity}`);
+  
       const newQuantity = type === 'buy' ? currentQuantity + quantity : currentQuantity - quantity;
       let newTotalSpent;
-      
       if (type === 'buy') {
         newTotalSpent = currentTotalSpent + tradeCost;
       } else {
         const avgCostPerShare = currentTotalSpent / currentQuantity;
         newTotalSpent = currentTotalSpent - (avgCostPerShare * quantity);
       }
-
-      // Calculate the actual amount to add/subtract from wallet
+  
       const walletAdjustment = type === 'buy' ? -tradeCost : tradeCost;
-
-      // First, update the wallet balance
+  
       const { error: walletError } = await supabase
         .from('profiles')
-        .update({
-          wallet_amt: currentBalance + walletAdjustment
-        })
+        .update({ wallet_amt: currentBalance + walletAdjustment })
         .eq('user_id', session.user.id);
-
-      if (walletError) {
-        throw new Error(`Failed to update wallet balance: ${walletError.message || 'Unknown error'}`);
-      }
-
-      // Then, handle the stock transaction
+      if (walletError) throw new Error(`Failed to update wallet balance: ${walletError.message}`);
+  
       let tradeError;
       if (newQuantity > 0) {
         const { error } = await supabase
@@ -654,18 +621,15 @@ const Explore = () => {
             ignoreDuplicates: false
           });
         tradeError = error;
-
-        // Update num_investors in stock table if this is a new investment
+  
         if (!userStockData) {
-          // First get current num_investors
           const { data: currentStock } = await supabase
             .from('stock')
             .select('num_investors')
             .eq('id', stockId)
             .single();
-
+  
           const currentInvestors = currentStock?.num_investors || 0;
-
           await supabase
             .from('stock')
             .update({ num_investors: currentInvestors + 1 })
@@ -678,47 +642,53 @@ const Explore = () => {
           .eq('user_id', session.user.id)
           .eq('stock_id', stockId);
         tradeError = error;
-
-        // Decrease num_investors in stock table
+  
         const { data: currentStock } = await supabase
           .from('stock')
           .select('num_investors')
           .eq('id', stockId)
           .single();
-
+  
         const currentInvestors = currentStock?.num_investors || 0;
         const newInvestors = Math.max(0, currentInvestors - 1);
-
+  
         await supabase
           .from('stock')
           .update({ num_investors: newInvestors })
           .eq('id', stockId);
       }
-
+  
       if (tradeError) {
-        // Rollback wallet update if stock transaction fails
         await supabase
           .from('profiles')
-          .update({
-            wallet_amt: currentBalance
-          })
+          .update({ wallet_amt: currentBalance })
           .eq('user_id', session.user.id);
-
-        throw new Error(`Failed to execute trade: ${tradeError.message || 'Unknown error'}`);
+  
+        throw new Error(`Failed to execute trade: ${tradeError.message}`);
       }
 
-      // Fetch updated balance
+      const { error: transactionError } = await supabase
+        .from('TransactionHistory')
+        .insert({
+          user_id: session.user.id,
+          stock_id: stockId,
+          type,
+          quantity,
+          price_per_share: currentPrice,
+          total_amount: tradeCost
+        });
+      if (transactionError) console.error('Failed to log transaction:', transactionError.message);
+  
       const { data: updatedProfile, error: updateError } = await supabase
         .from('profiles')
         .select('wallet_amt')
         .eq('user_id', session.user.id)
         .single();
-
+  
       if (!updateError) {
         setUserBalance(updatedProfile.wallet_amt);
       }
-
-      // Update portfolio in state
+  
       if (newQuantity > 0) {
         setUserPortfolio(prev => ({
           ...prev,
@@ -734,11 +704,12 @@ const Explore = () => {
           return newPortfolio;
         });
       }
-
+  
     } catch (error) {
       throw error.message || 'Failed to execute trade';
     }
   };
+  
 
   // Optimize the stock card rendering
   const renderStockCard = (stock, symbol) => {
