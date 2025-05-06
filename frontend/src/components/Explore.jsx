@@ -844,15 +844,11 @@ const Explore = () => {
         .maybeSingle();
 
       let stockId;
-      if (!stockTableData) {
-        // Insert the stock if it doesn't exist
+      if (stockTableError || !stockTableData) {
+        // If stock doesn't exist, create it
         const { data: newStock, error: insertError } = await supabase
           .from("stock")
-          .insert({
-            name: symbol,
-            tick: symbol,
-            num_investors: 1,
-          })
+          .insert([{ tick: symbol, name: stockInfo.name || symbol }])
           .select("id")
           .single();
 
@@ -928,7 +924,7 @@ const Explore = () => {
         newTotalSpent = currentTotalSpent + tradeCost;
       } else {
         const avgCostPerShare = currentTotalSpent / currentQuantity;
-        newTotalSpent = currentTotalSpent - avgCostPerShare * quantity;
+        newTotalSpent = currentTotalSpent - quantity * avgCostPerShare;
       }
 
       // Calculate the actual amount to add/subtract from wallet
@@ -954,38 +950,35 @@ const Explore = () => {
       let tradeError;
       if (newQuantity > 0) {
         const { error } = await supabase.from("userstock").upsert(
-          [
-            {
-              user_id: session.user.id,
-              stock_id: stockId,
-              amt_bought: newQuantity,
-              total_spent: newTotalSpent,
-            },
-          ],
           {
-            onConflict: "user_id,stock_id",
-            ignoreDuplicates: false,
-          }
+            user_id: session.user.id,
+            stock_id: stockId,
+            amt_bought: newQuantity,
+            total_spent: newTotalSpent,
+            last_activity: new Date().toISOString(),
+          },
+          { onConflict: "user_id,stock_id" }
         );
         tradeError = error;
 
-        // Update num_investors in stock table if this is a new investment
-        if (!userStockData) {
-          // First get current num_investors
-          const { data: currentStock } = await supabase
+        // If it's a new investment (currentQuantity was 0 and type is 'buy')
+        if (currentQuantity === 0 && type === "buy") {
+          const { data: stockData, error: stockSelectError } = await supabase
             .from("stock")
             .select("num_investors")
             .eq("id", stockId)
             .single();
 
-          const currentInvestors = currentStock?.num_investors || 0;
-
-          await supabase
-            .from("stock")
-            .update({ num_investors: currentInvestors + 1 })
-            .eq("id", stockId);
+          if (!stockSelectError && stockData) {
+            const newInvestors = (stockData.num_investors || 0) + 1;
+            await supabase
+              .from("stock")
+              .update({ num_investors: newInvestors })
+              .eq("id", stockId);
+          }
         }
       } else {
+        // If new quantity is 0, delete the record
         const { error } = await supabase
           .from("userstock")
           .delete()
@@ -993,20 +986,21 @@ const Explore = () => {
           .eq("stock_id", stockId);
         tradeError = error;
 
-        // Decrease num_investors in stock table
-        const { data: currentStock } = await supabase
+        // Decrement num_investors if the user sells all shares
+        const { data: stockData, error: stockSelectError } = await supabase
           .from("stock")
           .select("num_investors")
           .eq("id", stockId)
           .single();
 
-        const currentInvestors = currentStock?.num_investors || 0;
-        const newInvestors = Math.max(0, currentInvestors - 1);
+        if (!stockSelectError && stockData && stockData.num_investors > 0) {
+          const newInvestors = Math.max(0, stockData.num_investors - 1);
 
-        await supabase
-          .from("stock")
-          .update({ num_investors: newInvestors })
-          .eq("id", stockId);
+          await supabase
+            .from("stock")
+            .update({ num_investors: newInvestors })
+            .eq("id", stockId);
+        }
       }
 
       if (tradeError) {
@@ -1034,22 +1028,20 @@ const Explore = () => {
         setUserBalance(updatedProfile.wallet_amt);
       }
 
-      // Update portfolio in state
-      if (newQuantity > 0) {
-        setUserPortfolio((prev) => ({
-          ...prev,
-          [symbol]: {
+      // Update portfolio state
+      setUserPortfolio((prevPortfolio) => {
+        const newPortfolio = { ...prevPortfolio };
+        if (newQuantity > 0) {
+          newPortfolio[symbol] = {
             quantity: newQuantity,
-            totalSpent: newTotalSpent,
-          },
-        }));
-      } else {
-        setUserPortfolio((prev) => {
-          const newPortfolio = { ...prev };
+            avgPrice: newTotalSpent / newQuantity,
+            currentPrice: currentPrice, // Add current price for immediate reflection
+          };
+        } else {
           delete newPortfolio[symbol];
-          return newPortfolio;
-        });
-      }
+        }
+        return newPortfolio;
+      });
     } catch (error) {
       throw error.message || "Failed to execute trade";
     }
