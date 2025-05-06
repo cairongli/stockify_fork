@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
-  output: 'standalone',
+  // swcMinify: true, // Removed as it's no longer needed in Next.js 15+
+  output: "standalone",
   // Add proper error handling
   onDemandEntries: {
     // period (in ms) where the server will keep pages in the buffer

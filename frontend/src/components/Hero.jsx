@@ -8,7 +8,7 @@ const Hero = ({ user }) => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gray-900">
       {/* Full-width background image */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" style={{ position: "relative" }}>
         <Image
           src="/market-data.png"
           alt="Stock Market Analytics"
