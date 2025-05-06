@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: [
-    // "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
@@ -36,4 +36,8 @@ module.exports = {
     },
   },
   plugins: [],
+  // Explicitly add the corePlugins configuration for Tailwind CSS 4.1.5
+  corePlugins: {
+    preflight: true,
+  },
 };

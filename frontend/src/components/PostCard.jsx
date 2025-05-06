@@ -1,10 +1,10 @@
-"use client";
-import React from "react";
-import { motion } from "framer-motion";
-import { supabase } from "@/config/supabaseClient";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useGlobalUser } from "../config/UserContext";
+'use client';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { supabase } from '@/config/supabaseClient';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useGlobalUser } from '@/config/UserContext';
 
 const PostCard = ({ post, onFollow, isFollowing, showFollowButton = true }) => {
   const [isCurrentUser, setIsCurrentUser] = useState(false);
@@ -18,21 +18,19 @@ const PostCard = ({ post, onFollow, isFollowing, showFollowButton = true }) => {
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     // Convert UTC to local time
-    const localDate = new Date(
-      date.getTime() - date.getTimezoneOffset() * 60000
-    );
-    return localDate.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      hour12: true,
+    const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    return localDate.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
     });
   };
 
   const handleFollowClick = async () => {
     if (!currentUser) {
-      router.push("/login?redirect=/posts");
+      router.push('/login?redirect=/posts');
       return;
     }
     onFollow(post.author_id);
@@ -50,9 +48,7 @@ const PostCard = ({ post, onFollow, isFollowing, showFollowButton = true }) => {
             {post.author_name.charAt(0).toUpperCase()}
           </div>
           <div>
-            <span className="font-semibold text-gray-800 dark:text-gray-200 text-lg">
-              {post.author_name}
-            </span>
+            <span className="font-semibold text-gray-800 dark:text-gray-200 text-lg">{post.author_name}</span>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {formatTime(post.created_at)}
             </p>
@@ -64,13 +60,13 @@ const PostCard = ({ post, onFollow, isFollowing, showFollowButton = true }) => {
             disabled={isCurrentUser}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
               isCurrentUser
-                ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                 : isFollowing
-                ? "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                : "bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg"
+                ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg'
             }`}
           >
-            {isCurrentUser ? "Your Post" : isFollowing ? "Following" : "Follow"}
+            {isCurrentUser ? 'Your Post' : isFollowing ? 'Following' : 'Follow'}
           </button>
         )}
       </div>
@@ -81,4 +77,4 @@ const PostCard = ({ post, onFollow, isFollowing, showFollowButton = true }) => {
   );
 };
 
-export default PostCard;
+export default PostCard; 
