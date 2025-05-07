@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import Image from 'next/image';
-import Link from 'next/link';
+import { motion } from "framer-motion";
+import Image from "next/image";
+import Link from "next/link";
 
 const Hero = ({ user }) => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gray-900">
       {/* Full-width background image */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" style={{ position: "relative" }}>
         <Image
           src="/market-data.png"
           alt="Stock Market Analytics"
@@ -34,7 +34,8 @@ const Hero = ({ user }) => {
               <span className="text-blue-400"> Risk-Free</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-300 mb-8">
-              Master stock trading through our gamified platform. Practice with virtual money, learn from experience.
+              Master stock trading through our gamified platform. Practice with
+              virtual money, learn from experience.
             </p>
             <div className="space-y-6">
               {user ? (
@@ -46,13 +47,15 @@ const Hero = ({ user }) => {
                 </Link>
               ) : (
                 <Link
-                  href="/auth"
+                  href="/login"
                   className="bg-blue-600 text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-blue-700 transition-colors inline-block"
                 >
                   Get Started
                 </Link>
               )}
-              <p className="text-gray-400 text-sm block">No credit card required • Start with $100,000 virtual cash</p>
+              <p className="text-gray-400 text-sm block">
+                No credit card required • Start with $100,000 virtual cash
+              </p>
             </div>
           </motion.div>
 
@@ -67,10 +70,12 @@ const Hero = ({ user }) => {
               <div className="relative h-full flex flex-col justify-between">
                 <div className="space-y-6">
                   <div className="space-y-4">
-                    <h3 className="text-white font-semibold text-xl">Your Trading Journey Starts Here</h3>
+                    <h3 className="text-white font-semibold text-xl">
+                      Your Trading Journey Starts Here
+                    </h3>
                     <div className="h-[2px] bg-gradient-to-r from-blue-500 to-purple-500"></div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
@@ -92,20 +97,26 @@ const Hero = ({ user }) => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="bg-white/5 rounded-xl p-4 backdrop-blur-sm">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-white/80">Virtual Portfolio Value</span>
-                    <span className="text-green-400 font-semibold">$100,000</span>
+                    <span className="text-white/80">
+                      Virtual Portfolio Value
+                    </span>
+                    <span className="text-green-400 font-semibold">
+                      $100,000
+                    </span>
                   </div>
-                  <p className="text-white/60 text-sm">Start trading with virtual cash and track your progress</p>
+                  <p className="text-white/60 text-sm">
+                    Start trading with virtual cash and track your progress
+                  </p>
                 </div>
               </div>
             </div>
           </motion.div>
         </div>
       </div>
-      
+
       {/* Subtle Animated Background Elements */}
       <motion.div
         className="absolute inset-0 -z-10"
@@ -121,4 +132,4 @@ const Hero = ({ user }) => {
   );
 };
 
-export default Hero; 
+export default Hero;

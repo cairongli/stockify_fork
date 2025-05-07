@@ -45,7 +45,7 @@ export const setupMockSupabase = () => {
 
 export const setupMockUser = (isLoggedIn = true) => {
   jest.mock('@/config/UserContext', () => ({
-    globalUser: jest.fn().mockReturnValue(isLoggedIn ? mockUser : null)
+    useGlobalUser: jest.fn().mockReturnValue(isLoggedIn ? mockUser : null)
   }));
 };
 

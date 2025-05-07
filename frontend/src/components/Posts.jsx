@@ -4,12 +4,12 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/config/supabaseClient';
 import PostSubmissionForm from './PostSubmissionForm';
 import PostList from './PostList';
-import { globalUser } from '@/config/UserContext';
+import { useGlobalUser } from '@/config/UserContext';
 
 const Posts = () => {
   const [user, setUser] = useState(null);
   const router = useRouter();
-  const currentUser = globalUser();
+  const currentUser = useGlobalUser();
 
   useEffect(() => {
     setUser(currentUser);

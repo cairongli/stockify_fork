@@ -4,12 +4,12 @@ import { motion } from 'framer-motion';
 import { supabase } from '@/config/supabaseClient';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { globalUser } from '@/config/UserContext';
+import { useGlobalUser } from '@/config/UserContext';
 
 const PostCard = ({ post, onFollow, isFollowing, showFollowButton = true }) => {
   const [isCurrentUser, setIsCurrentUser] = useState(false);
   const router = useRouter();
-  const currentUser = globalUser();
+  const currentUser = useGlobalUser();
 
   useEffect(() => {
     setIsCurrentUser(currentUser?.id === post.author_id);

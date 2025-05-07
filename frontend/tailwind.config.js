@@ -1,9 +1,9 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
@@ -28,12 +28,16 @@ module.exports = {
       },
       colors: {
         navy: {
-          900: '#0A192F',
-          800: '#112240',
-          700: '#1D3461',
+          900: "#0A192F",
+          800: "#112240",
+          700: "#1D3461",
         },
       },
     },
   },
   plugins: [],
-} 
+  // Explicitly add the corePlugins configuration for Tailwind CSS 4.1.5
+  corePlugins: {
+    preflight: true,
+  },
+};

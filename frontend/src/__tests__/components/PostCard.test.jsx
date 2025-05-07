@@ -17,7 +17,7 @@ jest.mock('framer-motion', () => ({
 
 // Mock the UserContext
 jest.mock('@/config/UserContext', () => ({
-  globalUser: jest.fn()
+  useGlobalUser: jest.fn()
 }))
 
 describe('PostCard', () => {
@@ -45,7 +45,7 @@ describe('PostCard', () => {
 
   it('renders follow button and handles click when logged in', () => {
     const mockCurrentUser = { id: 'test-user' }
-    require('@/config/UserContext').globalUser.mockReturnValue(mockCurrentUser)
+    require('@/config/UserContext').useGlobalUser.mockReturnValue(mockCurrentUser)
     
     render(<PostCard post={mockPost} onFollow={mockOnFollow} />)
     const followButton = screen.getByRole('button', { name: /follow/i })
@@ -55,14 +55,14 @@ describe('PostCard', () => {
 
   it('shows "Your Post" when post is from current user', () => {
     const mockCurrentUser = { id: '123' }  // Same ID as post.author_id
-    require('@/config/UserContext').globalUser.mockReturnValue(mockCurrentUser)
+    require('@/config/UserContext').useGlobalUser.mockReturnValue(mockCurrentUser)
     
     render(<PostCard post={mockPost} onFollow={mockOnFollow} />)
     expect(screen.getByText('Your Post')).toBeInTheDocument()
   })
 
   it('redirects to login when clicking follow while not logged in', () => {
-    require('@/config/UserContext').globalUser.mockReturnValue(null)
+    require('@/config/UserContext').useGlobalUser.mockReturnValue(null)
     
     render(<PostCard post={mockPost} onFollow={mockOnFollow} />)
     const followButton = screen.getByRole('button', { name: /follow/i })

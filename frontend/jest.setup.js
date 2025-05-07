@@ -54,7 +54,8 @@ jest.mock('@/config/supabaseClient', () => ({
 
 // Mock UserContext
 jest.mock('@/config/UserContext', () => ({
-  globalUser: jest.fn().mockReturnValue({ id: 'test-user' })
+  GlobalUser: ({ children }) => children,
+  useGlobalUser: jest.fn().mockReturnValue({ id: 'test-user' })
 }));
 
 // Mock framer-motion

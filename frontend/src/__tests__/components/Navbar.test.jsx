@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import Navbar from '@/components/Navbar'
-import { globalUser } from '@/config/UserContext'
+import { useGlobalUser } from '@/config/UserContext'
 
 // Mock Framer Motion
 jest.mock('framer-motion', () => ({
@@ -28,7 +28,7 @@ jest.mock('@/config/supabaseClient', () => ({
 
 // Mock the UserContext
 jest.mock('@/config/UserContext', () => ({
-  globalUser: jest.fn()
+  useGlobalUser: jest.fn()
 }))
 
 describe('Navbar', () => {
@@ -37,7 +37,7 @@ describe('Navbar', () => {
   })
 
   it('renders login/signup buttons when user is not logged in', () => {
-    globalUser.mockReturnValue(null)
+    useGlobalUser.mockReturnValue(null)
     render(<Navbar />)
     
     expect(screen.getByText('Log In')).toBeInTheDocument()
@@ -46,7 +46,7 @@ describe('Navbar', () => {
   })
 
   it('renders logout button when user is logged in', () => {
-    globalUser.mockReturnValue({ id: 'test-user' })
+    useGlobalUser.mockReturnValue({ id: 'test-user' })
     render(<Navbar />)
     
     expect(screen.getByText('Log Out')).toBeInTheDocument()
@@ -55,7 +55,7 @@ describe('Navbar', () => {
   })
 
   it('handles logout correctly', async () => {
-    globalUser.mockReturnValue({ id: 'test-user' })
+    useGlobalUser.mockReturnValue({ id: 'test-user' })
     render(<Navbar />)
     
     const logoutButton = screen.getByText('Log Out')
