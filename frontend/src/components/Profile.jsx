@@ -119,6 +119,23 @@ const Profile = () => {
          console.log(updatedStocks);
          setInvestedStocks(updatedStocks);
          
+         const {data: transactionHistory, error: transactionError} = await supabase
+         .from('transactionhistory')
+          .select(`
+            stock (tick, name),
+            type,
+            quantity,
+            price_per_share,
+            total_amount,
+            created_at
+          `)
+          .eq('user_id', user.id);
+
+          if (transactionError) {
+            console.error('Error fetching trade history:', transactionError);
+          } 
+          console.log("TRANSACTION: ", transactionHistory);
+          setTradeHistory(transactionHistory);
         
         // // Example: Fetch followed stocks (replace with your actual query)
         // // Typically this would be a separate table for stocks the user follows but doesn't own
@@ -366,14 +383,14 @@ const Profile = () => {
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                   {tradeHistory.map((trade) => (
                     <tr key={trade.id}>
-                      <td className="px-4 py-3 whitespace-nowrap">{trade.date}</td>
-                      <td className="px-4 py-3 whitespace-nowrap font-medium">{trade.symbol}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{trade.created_at}</td>
+                      <td className="px-4 py-3 whitespace-nowrap font-medium">{trade.stock.tick}</td>
                       <td className={`px-4 py-3 whitespace-nowrap capitalize ${trade.type === 'buy' ? 'text-green-600' : 'text-red-600'}`}>
                         {trade.type}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">{trade.quantity}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">${Number(trade.price).toFixed(2)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">${(trade.quantity * trade.price).toFixed(2)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">${Number(trade.price_per_share).toFixed(2)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">${(trade.total_amount).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
