@@ -1023,6 +1023,23 @@ const Explore = () => {
         );
       }
 
+      //Record transaction
+      const {data: recordedTransaction, error: transactionError } = await supabase
+        .from('transactionhistory')
+        .insert({
+          user_id: session.user.id,
+          stock_id: stockId,
+          type,
+          quantity,
+          price_per_share: currentPrice,
+          total_amount: tradeCost
+        });
+        console.log(recordedTransaction);
+        console.log(transactionError);
+        if (transactionError) {
+          console.error('Failed to log transaction:', transactionError);
+        }
+
       // Fetch updated balance
       const { data: updatedProfile, error: updateError } = await supabase
         .from("profiles")
