@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/config/supabaseClient';
 import { Card } from '@/components/ui/card';
 import Button from './ui/Button';
-import Posts from '@/components/Posts';
+import PostCard from './PostCard';
 import { getStockQuote, getCompanyProfile, searchStocks } from '@/config/finnhubClient';
 
 // Dummy data for testing
@@ -33,9 +33,9 @@ const Profile = () => {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [investedStocks, setInvestedStocks] = useState([]);
-  const [investedStocksInfo, setInvestedStocksInfo] = useState([]);
   const [followedStocks, setFollowedStocks] = useState([]);
   const [tradeHistory, setTradeHistory] = useState([]);
+  const [userPosts, setUserPosts] = useState([]);
   const [activeTab, setActiveTab] = useState('stocks');
   const [useDummyData, setUseDummyData] = useState(false);
 
@@ -136,6 +136,23 @@ const Profile = () => {
           } 
           console.log("TRANSACTION: ", transactionHistory);
           setTradeHistory(transactionHistory);
+
+          const {data: posts, error: postsError} = await supabase
+          .from('posts')
+           .select(`
+             author,
+             created_at,
+             body,
+             id
+           `)
+           .eq('author', user.id);
+
+           if (postsError) {
+            console.error('Error fetching user posts:', postsError);
+          } 
+          setUserPosts(posts);
+
+          
         
         // // Example: Fetch followed stocks (replace with your actual query)
         // // Typically this would be a separate table for stocks the user follows but doesn't own
@@ -404,7 +421,16 @@ const Profile = () => {
       {activeTab === 'posts' && (
         <div>
           <h2 className="text-2xl font-bold mb-4">Your Posts</h2>
-          <Posts />
+          {
+            userPosts.map((posts) => (
+                <PostCard
+                key={posts.id}
+                post={posts}
+                isFollowing={false} // TODO: Implement following state
+                showFollowButton={false} // Always show follow button
+              />
+            ))
+          }
         </div>
       )}
     </div>
