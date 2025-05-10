@@ -69,7 +69,8 @@ export default function NewsPage() {
                   throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                updatedStocks.push([symbol, data]);
+                const updatedData = data.slice(0, 3);
+                updatedStocks.push(...updatedData);
               } catch (err) {
                 console.error(`Failed to fetch data for ${symbol}:`, err);
               }
@@ -77,7 +78,6 @@ export default function NewsPage() {
              clearTimeout(timeoutId);
            }
            setUserNews(updatedStocks);
-           console.log("UPDATED: ", updatedStocks);
         } catch (error) {
           console.error('Error in fetch user data:', error);
         } finally {
@@ -103,32 +103,37 @@ export default function NewsPage() {
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-        const response = await fetch(
-          `https://finnhub.io/api/v1/news?category=${category}&token=${apiKey}`,
-          {
-            signal: controller.signal,
-            headers: {
-              Accept: "application/json",
-            },
-          }
-        );
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          if (response.status === 401) {
+        if(category != 'user'){
+          const response = await fetch(
+            `https://finnhub.io/api/v1/news?category=${category}&token=${apiKey}`,
+            {
+              signal: controller.signal,
+              headers: {
+                Accept: "application/json",
+              },
+            }
+          );
+  
+          clearTimeout(timeoutId);
+  
+          if (!response.ok) {
+            if (response.status === 401) {
+              throw new Error(
+                "Invalid API key. Please check your Finnhub API key in .env.local."
+              );
+            }
             throw new Error(
-              "Invalid API key. Please check your Finnhub API key in .env.local."
+              `Failed to fetch news: ${response.status} ${response.statusText}`
             );
           }
-          throw new Error(
-            `Failed to fetch news: ${response.status} ${response.statusText}`
-          );
+  
+          const data = await response.json();
+          setNews(data);
         }
-
-        const data = await response.json();
-        setNews(data);
+        else{
+          setNews(userNews);
+          console.log(news);
+        }
       } catch (err) {
         console.error("Error fetching news:", err);
         if (err.name === "AbortError") {
@@ -155,13 +160,14 @@ export default function NewsPage() {
     setVisibleArticles((prev) => prev + 6);
   };
 
+
   const categories = [
     { id: "general", name: "General" },
     { id: "forex", name: "Forex" },
     { id: "crypto", name: "Crypto" },
     { id: "merger", name: "Mergers" },
     { id: "economic", name: "Economy" },
-    
+    { id: "user", name: "Your News"}
   ];
 
   if (loading)
