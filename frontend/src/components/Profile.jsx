@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import Button from './ui/Button';
 import PostCard from './PostCard';
 import { getStockQuote, getCompanyProfile, searchStocks } from '@/config/finnhubClient';
+import { motion } from 'framer-motion';
 
 // Dummy data for testing
 const DUMMY_INVESTED_STOCKS = [
@@ -423,12 +424,30 @@ const Profile = () => {
           <h2 className="text-2xl font-bold mb-4">Your Posts</h2>
           {
             userPosts.map((posts) => (
-                <PostCard
-                key={posts.id}
-                post={posts}
-                isFollowing={false} // TODO: Implement following state
-                showFollowButton={false} // Always show follow button
-              />
+              <>
+               <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-4 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-200"
+                  >
+              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg shadow-md">
+                  {profile.user_name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-800 dark:text-gray-200 text-lg">{profile.user_name}</span>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {formatTime(posts.created_at)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap text-lg leading-relaxed pl-13">
+              {posts.body}
+            </div>
+            </motion.div>
+            </>
             ))
           }
         </div>
@@ -443,4 +462,16 @@ function calculateGainLoss(purchasePrice, currentPrice) {
   return ((currentPrice - purchasePrice) / purchasePrice) * 100;
 }
 
+const formatTime = (dateString) => {
+  const date = new Date(dateString);
+  // Convert UTC to local time
+  const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return localDate.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true
+  });
+};
 export default Profile;
