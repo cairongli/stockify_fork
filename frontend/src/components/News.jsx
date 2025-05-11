@@ -2,14 +2,93 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-
+import { supabase } from '@/config/supabaseClient';
 export default function NewsPage() {
   const [news, setNews] = useState([]);
+  const [userNews, setUserNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [category, setCategory] = useState("general");
   const [visibleArticles, setVisibleArticles] = useState(6);
 
+  useEffect(() => {
+      const updatedStocks = [];
+      const fetchUserData = async () => {
+        setLoading(true);
+        try {
+          // Get current user
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (!user) {
+            // If not authenticated, show error state
+            setLoading(false);
+            return;
+          }
+  
+            const { data: userStocks, error: stocksError } = await supabase
+            .from('userstock')
+            .select(`
+              amt_bought,
+              total_spent,
+              stock (tick, name, num_investors)
+            `)
+            .eq('user_id', user.id);
+            //setInvestedStocks(userStocks);
+            
+           if (stocksError) {
+             console.error('Error fetching stocks:', stocksError);
+           } else if (userStocks && userStocks.length > 0) {
+             //setInvestedStocks(userStocks);
+             //get API key for user stock news
+             const apiKey = process.env.NEXT_PUBLIC_FINNHUB_API_KEY;
+
+             if (!apiKey) {
+               throw new Error(
+                 "Finnhub API key is missing. Please check your .env.local file."
+               );
+             }
+     
+             const controller = new AbortController();
+             const timeoutId = setTimeout(() => controller.abort(), 30000);
+             const fromDate = "2025-05-08";
+             const toDate = "2025-05-09";
+             await Promise.all(userStocks.map(async (userStock) => {
+              const symbol = userStock.stock.tick;
+              
+              try {
+                const response = await fetch(
+                  `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${fromDate}&to=${toDate}&token=${apiKey}`,
+                  {
+                    signal: controller.signal,
+                    headers: {
+                      Accept: "application/json",
+                    },
+                  }
+                );
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                const updatedData = data.slice(0, 3);
+                updatedStocks.push(...updatedData);
+              } catch (err) {
+                console.error(`Failed to fetch data for ${symbol}:`, err);
+              }
+             }));
+             clearTimeout(timeoutId);
+           }
+           setUserNews(updatedStocks);
+        } catch (error) {
+          console.error('Error in fetch user data:', error);
+        } finally {
+          setLoading(false);
+        }
+        
+      };
+  
+      fetchUserData();
+    }, []);
+    
   useEffect(() => {
     const fetchNews = async () => {
       try {
@@ -24,32 +103,37 @@ export default function NewsPage() {
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-        const response = await fetch(
-          `https://finnhub.io/api/v1/news?category=${category}&token=${apiKey}`,
-          {
-            signal: controller.signal,
-            headers: {
-              Accept: "application/json",
-            },
-          }
-        );
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          if (response.status === 401) {
+        if(category != 'user'){
+          const response = await fetch(
+            `https://finnhub.io/api/v1/news?category=${category}&token=${apiKey}`,
+            {
+              signal: controller.signal,
+              headers: {
+                Accept: "application/json",
+              },
+            }
+          );
+  
+          clearTimeout(timeoutId);
+  
+          if (!response.ok) {
+            if (response.status === 401) {
+              throw new Error(
+                "Invalid API key. Please check your Finnhub API key in .env.local."
+              );
+            }
             throw new Error(
-              "Invalid API key. Please check your Finnhub API key in .env.local."
+              `Failed to fetch news: ${response.status} ${response.statusText}`
             );
           }
-          throw new Error(
-            `Failed to fetch news: ${response.status} ${response.statusText}`
-          );
+  
+          const data = await response.json();
+          setNews(data);
         }
-
-        const data = await response.json();
-        setNews(data);
+        else{
+          setNews(userNews);
+          console.log(news);
+        }
       } catch (err) {
         console.error("Error fetching news:", err);
         if (err.name === "AbortError") {
@@ -76,12 +160,14 @@ export default function NewsPage() {
     setVisibleArticles((prev) => prev + 6);
   };
 
+
   const categories = [
     { id: "general", name: "General" },
     { id: "forex", name: "Forex" },
     { id: "crypto", name: "Crypto" },
     { id: "merger", name: "Mergers" },
     { id: "economic", name: "Economy" },
+    { id: "user", name: "Your News"}
   ];
 
   if (loading)

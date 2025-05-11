@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/config/supabaseClient';
 import { Card } from '@/components/ui/card';
 import Button from './ui/Button';
-import Posts from '@/components/Posts';
+import PostCard from './PostCard';
 import { getStockQuote, getCompanyProfile, searchStocks } from '@/config/finnhubClient';
+import { motion } from 'framer-motion';
 
 // Dummy data for testing
 const DUMMY_INVESTED_STOCKS = [
@@ -33,9 +34,9 @@ const Profile = () => {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [investedStocks, setInvestedStocks] = useState([]);
-  const [investedStocksInfo, setInvestedStocksInfo] = useState([]);
   const [followedStocks, setFollowedStocks] = useState([]);
   const [tradeHistory, setTradeHistory] = useState([]);
+  const [userPosts, setUserPosts] = useState([]);
   const [activeTab, setActiveTab] = useState('stocks');
   const [useDummyData, setUseDummyData] = useState(false);
 
@@ -119,6 +120,40 @@ const Profile = () => {
          console.log(updatedStocks);
          setInvestedStocks(updatedStocks);
          
+         const {data: transactionHistory, error: transactionError} = await supabase
+         .from('transactionhistory')
+          .select(`
+            stock (tick, name),
+            type,
+            quantity,
+            price_per_share,
+            total_amount,
+            created_at
+          `)
+          .eq('user_id', user.id);
+
+          if (transactionError) {
+            console.error('Error fetching trade history:', transactionError);
+          } 
+          console.log("TRANSACTION: ", transactionHistory);
+          setTradeHistory(transactionHistory);
+
+          const {data: posts, error: postsError} = await supabase
+          .from('posts')
+           .select(`
+             author,
+             created_at,
+             body,
+             id
+           `)
+           .eq('author', user.id);
+
+           if (postsError) {
+            console.error('Error fetching user posts:', postsError);
+          } 
+          setUserPosts(posts);
+
+          
         
         // // Example: Fetch followed stocks (replace with your actual query)
         // // Typically this would be a separate table for stocks the user follows but doesn't own
@@ -170,6 +205,32 @@ const Profile = () => {
   const handleTabChange = (tab) => {
     console.log("Changing tab to:", tab);
     setActiveTab(tab);
+  };
+
+  const fetchUserPosts = async (userId) => {
+    const { data: posts, error } = await supabase
+      .from('posts')
+      .select('author, created_at, body, id')
+      .eq('author', userId);
+  
+    if (error) {
+      console.error('Error fetching user posts:', error);
+    } else {
+      setUserPosts(posts);
+    }
+  };
+
+  
+  const handleDeletePost = async (postId) => {
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (error) {
+      console.error('Error deleting post:', error);
+    } else {
+       const { data: { user } } = await supabase.auth.getUser();
+       if (user) {
+         await fetchUserPosts(user.id);
+       }
+    }
   };
   
   if (loading) {
@@ -366,14 +427,14 @@ const Profile = () => {
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                   {tradeHistory.map((trade) => (
                     <tr key={trade.id}>
-                      <td className="px-4 py-3 whitespace-nowrap">{trade.date}</td>
-                      <td className="px-4 py-3 whitespace-nowrap font-medium">{trade.symbol}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{formatTime(trade.created_at)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap font-medium">{trade.stock.tick}</td>
                       <td className={`px-4 py-3 whitespace-nowrap capitalize ${trade.type === 'buy' ? 'text-green-600' : 'text-red-600'}`}>
                         {trade.type}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">{trade.quantity}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">${Number(trade.price).toFixed(2)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">${(trade.quantity * trade.price).toFixed(2)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">${Number(trade.price_per_share).toFixed(2)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">${(trade.total_amount).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -387,7 +448,40 @@ const Profile = () => {
       {activeTab === 'posts' && (
         <div>
           <h2 className="text-2xl font-bold mb-4">Your Posts</h2>
-          <Posts />
+          {
+            userPosts.map((posts) => (
+              <>
+               <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-4 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-200"
+                  >
+              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-lg shadow-md">
+                  {profile.user_name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-800 dark:text-gray-200 text-lg">{profile.user_name}</span>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {formatTime(posts.created_at)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap text-lg leading-relaxed pl-13">
+              {posts.body}
+            </div>
+            <button
+            onClick={() => handleDeletePost(posts.id)}
+            className="text-red-600 hover:underline"
+          >
+            Delete
+          </button>
+            </motion.div>
+            </>
+            ))
+          }
         </div>
       )}
     </div>
@@ -399,5 +493,22 @@ function calculateGainLoss(purchasePrice, currentPrice) {
   if (!purchasePrice || !currentPrice) return 0;
   return ((currentPrice - purchasePrice) / purchasePrice) * 100;
 }
+
+const formatTime = (dateString) => {
+  const date = new Date(dateString);
+  // Convert UTC to local time
+  const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return localDate.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true
+  });
+};
+
+
+
+
 
 export default Profile;
