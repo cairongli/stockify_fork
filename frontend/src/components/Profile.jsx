@@ -206,6 +206,32 @@ const Profile = () => {
     console.log("Changing tab to:", tab);
     setActiveTab(tab);
   };
+
+  const fetchUserPosts = async (userId) => {
+    const { data: posts, error } = await supabase
+      .from('posts')
+      .select('author, created_at, body, id')
+      .eq('author', userId);
+  
+    if (error) {
+      console.error('Error fetching user posts:', error);
+    } else {
+      setUserPosts(posts);
+    }
+  };
+
+  
+  const handleDeletePost = async (postId) => {
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (error) {
+      console.error('Error deleting post:', error);
+    } else {
+       const { data: { user } } = await supabase.auth.getUser();
+       if (user) {
+         await fetchUserPosts(user.id);
+       }
+    }
+  };
   
   if (loading) {
     return (
@@ -401,7 +427,7 @@ const Profile = () => {
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                   {tradeHistory.map((trade) => (
                     <tr key={trade.id}>
-                      <td className="px-4 py-3 whitespace-nowrap">{trade.created_at}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{formatTime(trade.created_at)}</td>
                       <td className="px-4 py-3 whitespace-nowrap font-medium">{trade.stock.tick}</td>
                       <td className={`px-4 py-3 whitespace-nowrap capitalize ${trade.type === 'buy' ? 'text-green-600' : 'text-red-600'}`}>
                         {trade.type}
@@ -446,6 +472,12 @@ const Profile = () => {
             <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap text-lg leading-relaxed pl-13">
               {posts.body}
             </div>
+            <button
+            onClick={() => handleDeletePost(posts.id)}
+            className="text-red-600 hover:underline"
+          >
+            Delete
+          </button>
             </motion.div>
             </>
             ))
@@ -474,4 +506,9 @@ const formatTime = (dateString) => {
     hour12: true
   });
 };
+
+
+
+
+
 export default Profile;
