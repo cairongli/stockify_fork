@@ -35,7 +35,7 @@ jobs:
           echo "NEXT_PUBLIC_FINNHUB_API_KEY=${{ secrets.NEXT_PUBLIC_FINNHUB_API_KEY }}" >> .env
 
       - name: Deploy to Vercel (Production)
-        uses: amondnet/vercel-action@v25
+        uses: amondnet/vercel-action@v25.1.0
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
