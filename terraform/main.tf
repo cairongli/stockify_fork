@@ -42,6 +42,5 @@ resource "vercel_project_domain" "stockify_domain" {
 resource "vercel_deployment" "production" {
   project_id  = data.vercel_project.stockify.id
   production  = true
-  files_count = 0 # This is a placeholder as we're using GitHub Actions for deployment
   ref         = "main"
 } 
