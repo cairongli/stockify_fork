@@ -32,15 +32,13 @@ resource "vercel_project_environment_variable" "supabase_anon_key" {
   target     = ["production", "preview", "development"]
 }
 
-# Custom domain configuration
-resource "vercel_project_domain" "stockify_domain" {
-  project_id = data.vercel_project.stockify.id
-  domain     = "stockify-ii3a.vercel.app"
-}
-
-# Project deployment configuration
+# Update deployment configuration to use GitHub Actions instead
+# We'll keep this commented out as reference but not use it
+# since GitHub Actions is handling the actual deployment
+/*
 resource "vercel_deployment" "production" {
   project_id  = data.vercel_project.stockify.id
   production  = true
   ref         = "main"
-} 
+}
+*/ 

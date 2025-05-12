@@ -4,11 +4,6 @@ output "project_name" {
 }
 
 output "project_url" {
-  value       = vercel_project_domain.stockify_domain.domain
+  value       = "${data.vercel_project.stockify.name}.vercel.app"
   description = "The URL of the deployed project"
-}
-
-output "deployment_id" {
-  value       = vercel_deployment.production.id
-  description = "The ID of the production deployment"
 } 
