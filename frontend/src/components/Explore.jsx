@@ -257,11 +257,14 @@ const Explore = () => {
       const isHoliday = MARKET_HOLIDAYS.includes(today);
 
       // Market is open only on weekdays, during trading hours, and not on holidays
+      // Temporarily allowing trading during off-market hours
       setIsMarketOpen(
-        !isWeekend &&
-          !isHoliday &&
-          currentTimeInHours >= TRADING_HOURS.START &&
-          currentTimeInHours < TRADING_HOURS.END
+        true
+        // Commented out for testing:
+        // !isWeekend &&
+        //   !isHoliday &&
+        //   currentTimeInHours >= TRADING_HOURS.START &&
+        //   currentTimeInHours < TRADING_HOURS.END
       );
     };
 
@@ -1024,21 +1027,20 @@ const Explore = () => {
       }
 
       //Record transaction
-      const {data: recordedTransaction, error: transactionError } = await supabase
-        .from('transactionhistory')
-        .insert({
+      const { data: recordedTransaction, error: transactionError } =
+        await supabase.from("transactionhistory").insert({
           user_id: session.user.id,
           stock_id: stockId,
           type,
           quantity,
           price_per_share: currentPrice,
-          total_amount: tradeCost
+          total_amount: tradeCost,
         });
-        console.log(recordedTransaction);
-        console.log(transactionError);
-        if (transactionError) {
-          console.error('Failed to log transaction:', transactionError);
-        }
+      console.log(recordedTransaction);
+      console.log(transactionError);
+      if (transactionError) {
+        console.error("Failed to log transaction:", transactionError);
+      }
 
       // Fetch updated balance
       const { data: updatedProfile, error: updateError } = await supabase
