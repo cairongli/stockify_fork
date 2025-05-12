@@ -1,0 +1,5 @@
+supabase_url      = "https://your-supabase-project.supabase.co"
+supabase_anon_key  = "your-supabase-anon-key"
+vercel_project_id  = "your-vercel-project-id"
+vercel_org_id      = "your-vercel-org-id"
+vercel_token       = "your-vercel-api-token" 
