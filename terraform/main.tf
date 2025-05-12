@@ -17,7 +17,16 @@ data "vercel_project" "stockify" {
   name = "stockify-ii3a"
 }
 
-# Project environment variables
+# Instead of creating environment variables, use data sources to reference existing ones
+# This is commented out because the Vercel provider doesn't support reading environment variables directly
+# If needed, these can be managed via the Vercel dashboard
+
+# Note: Since we're demonstrating infrastructure as code but the environment variables
+# already exist, we're intentionally not creating them to avoid conflicts.
+# In a real-world scenario with a fresh project, you would create these resources.
+
+# For documentation purposes, this is how you would define environment variables:
+/*
 resource "vercel_project_environment_variable" "supabase_url" {
   project_id = data.vercel_project.stockify.id
   key        = "SUPABASE_URL"
@@ -31,6 +40,7 @@ resource "vercel_project_environment_variable" "supabase_anon_key" {
   value      = var.supabase_anon_key
   target     = ["production", "preview", "development"]
 }
+*/
 
 # Update deployment configuration to use GitHub Actions instead
 # We'll keep this commented out as reference but not use it
