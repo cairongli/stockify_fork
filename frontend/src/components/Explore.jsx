@@ -256,17 +256,13 @@ const Explore = () => {
       const today = now.toISOString().split("T")[0];
       const isHoliday = MARKET_HOLIDAYS.includes(today);
 
-      // Market is open only on weekdays, during trading hours, and not on holidays
-      // Commented out for testing during off-market hours
-      // setIsMarketOpen(
-      //   !isWeekend &&
-      //     !isHoliday &&
-      //     currentTimeInHours >= TRADING_HOURS.START &&
-      //     currentTimeInHours < TRADING_HOURS.END
-      // );
-
-      // Always set market as open for testing
-      setIsMarketOpen(true);
+      // Check real market hours
+      setIsMarketOpen(
+        !isWeekend &&
+          !isHoliday &&
+          currentTimeInHours >= TRADING_HOURS.START &&
+          currentTimeInHours < TRADING_HOURS.END
+      );
     };
 
     checkMarketHours();
@@ -1468,9 +1464,22 @@ const Explore = () => {
       <div className="container mx-auto px-4 py-8 pt-28">
         {/* Main header section with balance */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-            Explore Stocks
-          </h1>
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+              Explore Stocks
+            </h1>
+            <div className="flex items-center mt-2">
+              <span
+                className={`text-sm font-medium px-2 py-1 rounded ${
+                  isMarketOpen
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {isMarketOpen ? "Market Open" : "Market Closed"}
+              </span>
+            </div>
+          </div>
           <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-lg shadow-md border border-gray-100 dark:border-gray-700">
             <p className="text-gray-900 dark:text-white text-lg">
               Balance:{" "}
