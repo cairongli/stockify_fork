@@ -256,13 +256,17 @@ const Explore = () => {
       const today = now.toISOString().split("T")[0];
       const isHoliday = MARKET_HOLIDAYS.includes(today);
 
-      // Check real market hours
-      setIsMarketOpen(
-        !isWeekend &&
-          !isHoliday &&
-          currentTimeInHours >= TRADING_HOURS.START &&
-          currentTimeInHours < TRADING_HOURS.END
-      );
+      // Market is open only on weekdays, during trading hours, and not on holidays
+      // Temporarily allowing trading during off-market hours
+      setIsMarketOpen(true);
+
+      // Uncomment this to enforce real market hours:
+      // setIsMarketOpen(
+      //   !isWeekend &&
+      //     !isHoliday &&
+      //     currentTimeInHours >= TRADING_HOURS.START &&
+      //     currentTimeInHours < TRADING_HOURS.END
+      // );
     };
 
     checkMarketHours();
