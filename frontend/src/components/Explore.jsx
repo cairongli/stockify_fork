@@ -257,14 +257,11 @@ const Explore = () => {
       const isHoliday = MARKET_HOLIDAYS.includes(today);
 
       // Market is open only on weekdays, during trading hours, and not on holidays
-      // Temporarily allowing trading during off-market hours
       setIsMarketOpen(
-        true
-        // Commented out for testing:
-        // !isWeekend &&
-        //   !isHoliday &&
-        //   currentTimeInHours >= TRADING_HOURS.START &&
-        //   currentTimeInHours < TRADING_HOURS.END
+        !isWeekend &&
+          !isHoliday &&
+          currentTimeInHours >= TRADING_HOURS.START &&
+          currentTimeInHours < TRADING_HOURS.END
       );
     };
 
