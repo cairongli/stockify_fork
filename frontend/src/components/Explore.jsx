@@ -258,6 +258,16 @@ const Explore = () => {
 
       // Market is open only on weekdays, during trading hours, and not on holidays
       // Temporarily allowing trading during off-market hours
+
+      setIsMarketOpen(true);
+
+      // Commented out for testing:
+      // setIsMarketOpen(
+      //   !isWeekend &&
+      //     !isHoliday &&
+      //     currentTimeInHours >= TRADING_HOURS.START &&
+      //     currentTimeInHours < TRADING_HOURS.END
+      // );
       setIsMarketOpen(
         true
         // Commented out for testing:
@@ -266,6 +276,7 @@ const Explore = () => {
         //   currentTimeInHours >= TRADING_HOURS.START &&
         //   currentTimeInHours < TRADING_HOURS.END
       );
+
     };
 
     checkMarketHours();
@@ -282,15 +293,61 @@ const Explore = () => {
         getCompanyProfile(symbol),
       ]);
 
-      // Update the stock data
+      // Get the stock ID from the database
+      const { data: stockData, error } = await supabase
+        .from("stock")
+        .select("id")
+        .eq("tick", symbol)
+        .single();
+
+      let stockId;
+
+      // If we don't have a stock ID, create one
+      if (error || !stockData) {
+        const { data: newStock, error: insertError } = await supabase
+          .from("stock")
+          .insert({
+            name: profile.name || symbol,
+            tick: symbol,
+            num_investors: 0,
+            current_price: quote.c, // Add current price
+          })
+          .select("id")
+          .single();
+
+        if (insertError) {
+          console.error("Error creating stock:", insertError);
+          return;
+        }
+
+        stockId = newStock.id;
+      } else {
+        stockId = stockData.id;
+
+        // Update the current price
+        await supabase
+          .from("stock")
+          .update({ current_price: quote.c })
+          .eq("id", stockId);
+      }
+
+      // Update the stock data with the stock ID
       setStockData((prevData) => ({
         ...prevData,
         [symbol]: {
           quote,
-          profile,
+          profile: {
+            ...profile,
+            id: stockId,
+          },
         },
       }));
-    } catch (error) {}
+
+      return stockId; // Return the stock ID for immediate use
+    } catch (error) {
+      console.error("Error fetching stock data:", error);
+      return null;
+    }
   };
 
   // Update all stock data
@@ -1241,19 +1298,21 @@ const Explore = () => {
               </div>
             )}
 
-            {/* Trade button (visible only when market is open) */}
-            {isMarketOpen && (
-              <button
-                className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md text-sm font-medium transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedStocks([symbol]);
-                  setShowTradeModal(true);
-                }}
-              >
-                Trade
-              </button>
-            )}
+            {/* Trade button */}
+            <div className="flex mt-3">
+              {isMarketOpen && (
+                <button
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md text-sm font-medium transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedStocks([symbol]);
+                    setShowTradeModal(true);
+                  }}
+                >
+                  Trade
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </Card>
@@ -1419,9 +1478,22 @@ const Explore = () => {
       <div className="container mx-auto px-4 py-8 pt-28">
         {/* Main header section with balance */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-            Explore Stocks
-          </h1>
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+              Explore Stocks
+            </h1>
+            <div className="flex items-center mt-2">
+              <span
+                className={`text-sm font-medium px-2 py-1 rounded ${
+                  isMarketOpen
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {isMarketOpen ? "Market Open" : "Market Closed"}
+              </span>
+            </div>
+          </div>
           <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-lg shadow-md border border-gray-100 dark:border-gray-700">
             <p className="text-gray-900 dark:text-white text-lg">
               Balance:{" "}

@@ -1,27 +1,49 @@
 # This workflow will deploy the application to Vercel after a successful merge to main
 
-name: deploy
+name: Deploy to Vercel
 
 on:
   workflow_run:
-    workflows: [test] 
-    types: [completed] 
-    branches: [main] 
+    workflows: [test, "Terraform Infrastructure"]
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [main]
+    paths-ignore:
+      - "terraform/**"
+      - "**/*.md"
+  workflow_dispatch:
 
 jobs:
   on-success:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }} 
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: |
-          npm install
+        working-directory: frontend
+        run: npm ci
 
       - name: Build Next.js app
+        working-directory: frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Create deployment package
         run: |
-          npm run build
+          cd frontend
+          zip -r ../deployment.zip .next public package.json package-lock.json next.config.mjs
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
@@ -29,5 +51,5 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: ./
-          prod: true 
+          working-directory: ./frontend
+          prod: true
