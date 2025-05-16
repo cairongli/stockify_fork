@@ -260,7 +260,7 @@ const Explore = () => {
       // Temporarily allowing trading during off-market hours
       setIsMarketOpen(true);
 
-      // Uncomment this to enforce real market hours:
+      // Commented out for testing:
       // setIsMarketOpen(
       //   !isWeekend &&
       //     !isHoliday &&
